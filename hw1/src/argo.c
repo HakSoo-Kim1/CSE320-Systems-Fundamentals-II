@@ -1,6 +1,5 @@
 #include <stdlib.h>
 #include <stdio.h>
-// #include <math.h>
 
 
 
@@ -8,11 +7,16 @@
 #include "global.h"
 #include "debug.h"
 
+int argo_read_basic(ARGO_VALUE *v, FILE *f);
+int argo_read_array(ARGO_ARRAY *a, FILE *f);
+int argo_read_object(ARGO_OBJECT *o, FILE *f);
 int argo_write_basic(ARGO_VALUE *v, FILE *f);
 int argo_write_object(ARGO_OBJECT *o, FILE *f);
 int argo_write_array(ARGO_ARRAY *a, FILE *f);
-int intToHex(int value);
-int spaceGenerator(long spaceRequired);
+int intToHex(int value, FILE *f);
+int hexToInt(char c);
+
+int spaceGenerator(long spaceRequired, FILE *f);
 int indentation = 0; 
 
 /**
@@ -30,16 +34,63 @@ int indentation = 0;
  * In case of an error (these include failure of the input to conform
  * to the JSON standard, premature EOF on the input stream, as well as
  * other I/O errors), a one-line error message is output to standard error
- * and a NULL pointer value is returned.
+ * and a NULL pointer value is returned
  *
  * @param f  Input stream from which JSON is to be read.
  * @return  A valid pointer if the operation is completely successful,
  * NULL if there is any error.
  */
-// ARGO_VALUE *argo_read_value(FILE *f) {
-//     // TO BE IMPLEMENTED.
-//     abort();
-// }
+ARGO_VALUE *argo_read_value(FILE *f) {
+    char c;
+    while ( (c = fgetc(f)) != EOF){
+        if (argo_is_whitespace(c)){
+            continue;
+        }
+        else if (argo_is_digit(c) || c == ARGO_MINUS){ 
+            ungetc(c, f);
+            (argo_value_storage + argo_next_value) -> type  = ARGO_NUMBER_TYPE;
+            if (argo_read_number(&((argo_value_storage + argo_next_value) -> content.number), f) == -1){
+                return NULL;
+            }
+            argo_next_value += 1;
+        }
+        else if (c == ARGO_T || c == ARGO_F || c == ARGO_N){
+            ungetc(c, f);
+            (argo_value_storage + argo_next_value) -> type = ARGO_BASIC_TYPE;
+            if (argo_read_basic(argo_value_storage + argo_next_value, f) == -1){
+                return NULL;
+            }
+            argo_next_value += 1;
+
+        }
+        else if (c == ARGO_QUOTE){
+            (argo_value_storage + argo_next_value) -> type = ARGO_STRING_TYPE;
+            if (argo_read_string(&((argo_value_storage + argo_next_value) -> content.string), f) == -1){
+                return NULL;
+            }
+            argo_next_value += 1;
+        }
+        else if (c == ARGO_LBRACK){
+            (argo_value_storage + argo_next_value) -> type = ARGO_ARRAY_TYPE;
+            if (argo_read_array(&((argo_value_storage + argo_next_value) -> content.array), f) == -1){
+                return NULL;
+            }
+        }
+        else if (c == ARGO_LBRACE){
+            (argo_value_storage + argo_next_value) -> type = ARGO_OBJECT_TYPE;
+            if (argo_read_object(&((argo_value_storage + argo_next_value) -> content.object), f) == -1){
+                return NULL;
+            }
+        }
+        else{
+            fprintf(stderr, "unknown character found. Possible that wrong format given.\n");                   /// good? 
+            return NULL;
+        }
+    }
+    return &argo_value_storage[0];
+
+}
+
 
 /**
  * @brief  Read JSON input from a specified input stream, attempt to
@@ -59,10 +110,94 @@ int indentation = 0;
  * @return  Zero if the operation is completely successful,
  * nonzero if there is any error.
  */
-// int argo_read_string(ARGO_STRING *s, FILE *f) {
-//     // TO BE IMPLEMENTED.
-//     abort();
-// }
+int argo_read_string(ARGO_STRING *s, FILE *f) {
+    char c = fgetc(f);
+    while (c != ARGO_QUOTE){
+        if (c == ARGO_BSLASH){
+            c = fgetc(f);
+            if (c == ARGO_B){
+                argo_append_char(s, ARGO_BS);
+            }
+            else if (c == ARGO_F){
+                argo_append_char(s, ARGO_FF);
+            }
+            else if (c == ARGO_N){
+                argo_append_char(s, ARGO_LF);
+            }
+            else if (c == ARGO_R){
+                argo_append_char(s, ARGO_CR);
+            }
+            else if (c == ARGO_R){
+                argo_append_char(s, ARGO_CR);
+            }
+            else if (c == ARGO_T){
+                argo_append_char(s, ARGO_HT);
+            }
+            else if (c == ARGO_BSLASH){
+                argo_append_char(s, ARGO_BSLASH);
+            } 
+            else if (c == ARGO_QUOTE){
+                argo_append_char(s, ARGO_QUOTE);
+            }
+            else if (c == ARGO_FSLASH){
+                argo_append_char(s, ARGO_FSLASH);
+            }
+            else if (c == ARGO_U){
+                int counter = 4;
+                int hex;
+                while(counter != 0){
+                    c = getchar();
+                    if (!argo_is_hex(c)){
+                        fprintf(stderr, "wrong hex value given.\n");      
+                        return -1;     
+                    }
+                    if (counter == 4){
+                        hex = hexToInt(c);
+                    }
+                    else{
+                        hex *= 16;
+                        hex += hexToInt(c);
+                    }
+                    counter -= 1;
+                }
+                if (hex == 8){
+                    argo_append_char(s, ARGO_BS);
+                }
+                else if (hex == 12){
+                    argo_append_char(s, ARGO_FF);
+                }
+                else if (hex == 10){
+                    argo_append_char(s, ARGO_LF);
+                }
+                else if (hex == 13){
+                    argo_append_char(s, ARGO_CR);
+                }
+                else if (hex == 9){
+                    argo_append_char(s, ARGO_HT);
+                }
+                else if (hex == 47){
+                    argo_append_char(s, ARGO_FSLASH);
+                }
+                else{
+                    argo_append_char(s, hex);
+                }
+            }
+            else{
+                fprintf(stderr, "wrong escaping letter.\n");      
+                return -1;
+            }
+        }
+        else{
+            argo_append_char(s, c);
+
+        }
+        c = fgetc(f);
+    }
+
+
+    return 0;
+
+}
 
 /**
  * @brief  Read JSON input from a specified input stream, attempt to
@@ -86,10 +221,318 @@ int indentation = 0;
  * @return  Zero if the operation is completely successful,
  * nonzero if there is any error.
  */
-// int argo_read_number(ARGO_NUMBER *n, FILE *f) {
-//     // TO BE IMPLEMENTED.
-//     abort();
-// }
+int argo_read_number(ARGO_NUMBER *n, FILE *f) {
+    char c = fgetc(f);
+    n -> valid_int = 1;
+    n -> valid_float = 1;
+    n -> int_value = 0;
+    n -> float_value = 0;
+    double floatPoint;
+    int isNegative = 0;
+    int isExponentNegative = 0;
+    while (argo_is_digit(c) || c == ARGO_PERIOD || c == ARGO_MINUS){
+        if (c == ARGO_MINUS){
+            if (n -> int_value != 0 || n -> float_value != 0){
+                fprintf(stderr, "wrong minus place\n");                  
+                return -1;
+            }
+            isNegative = 1;
+        }
+        else if (c == ARGO_PERIOD){
+            if (n->valid_float == 1 && n -> valid_int == 0){
+                fprintf(stderr, "more than one point exist in one float number\n");
+                return -1;
+            }
+            floatPoint = 0.1;
+            n -> valid_int = 0;
+            n -> int_value = 0;
+        }
+        else if (argo_is_digit(c)){
+            if (n->valid_float == 1 && n -> valid_int == 0){
+                n -> float_value +=  (c - '0') * floatPoint;
+                floatPoint /= 10;
+            }
+            else{
+                if (n -> int_value == 0 && n -> float_value == 0){
+                    n -> int_value += c - '0';
+                    n -> float_value += c - '0';
+                }
+                else{
+                    n -> int_value *= 10;
+                    n -> int_value += c - '0';
+                    n -> float_value *= 10;
+                    n -> float_value += c - '0';
+                }
+            }
+        }
+        argo_append_char(&(n -> string_value), (int)c);
+        c = fgetc(f);
+    }
+    if (isNegative){
+        if (n->valid_float == 1 && n -> valid_int == 0){
+            n -> float_value *= -1;
+        }
+        else{
+            n -> float_value *= -1;
+            n -> int_value *= -1;
+        }
+    }
+    if (argo_is_exponent(c)){
+        n -> valid_int = 0;
+        n -> int_value = 0;        
+        argo_append_char(&(n -> string_value), (int)c);
+        c = fgetc(f);
+        if(c == ARGO_MINUS){
+            argo_append_char(&(n -> string_value), (int)c);
+            isExponentNegative = 1;
+            c = fgetc(f);
+        }
+        int exponent = 0;
+        while(argo_is_digit(c)){
+            if (exponent == 0){
+                exponent = c - '0';
+            }
+            else{
+                exponent *= 10;
+                exponent += c - '0';
+            }
+            argo_append_char(&(n -> string_value), (int)c);
+            c = fgetc(f);
+        }
+        double num = 1;
+        while(exponent != 0){
+            if (isExponentNegative){
+                num /= 10;
+            }
+            else{
+                num *= 10;
+            }
+            exponent -= 1;
+        }
+        n -> float_value *= num;
+    }
+    ungetc(c, f);
+    return 0;
+}
+
+int argo_read_basic(ARGO_VALUE *v, FILE *f) {
+    char c = fgetc(f);
+    if (c == ARGO_T){
+        c = fgetc(f);
+        if (c == ARGO_R){
+            c = fgetc(f);
+            if (c == ARGO_U){
+                c = fgetc(f);
+                if (c == ARGO_E){
+                    v -> content.basic = ARGO_TRUE;
+                    return 0;
+                }
+            }
+        }
+    }
+    else if (c == ARGO_F){
+        c = fgetc(f);
+        if (c == 'a'){
+            c = fgetc(f);
+            if (c == 'l'){
+                c = fgetc(f);
+                if (c == 's'){
+                    c = fgetc(f);
+                    if (c == 'e'){
+                        v -> content.basic = ARGO_FALSE;
+                        return 0;
+                    } 
+                }
+            }
+        }
+    }
+    else if (c == ARGO_N){
+        c = fgetc(f);
+        if (c == ARGO_U){
+            c = fgetc(f);
+            if (c == 'l'){
+                c = fgetc(f);
+                if (c == 'l'){
+                    v -> content.basic = ARGO_NULL;
+                    return 0;
+                }
+            }
+        }
+    }
+    fprintf(stderr, "unknown character found. Possible that wrong basic given.\n");                 
+    return -1;
+
+
+}
+
+int argo_read_array(ARGO_ARRAY *a, FILE *f){
+    argo_next_value += 1;
+    a -> element_list = argo_value_storage + argo_next_value;
+    a -> element_list -> next = a -> element_list;
+    a -> element_list -> prev = a -> element_list;
+    argo_next_value += 1;
+    int nextFlag = 1;
+    char c = fgetc(f);
+    while(c != ARGO_RBRACK){
+        if (argo_is_whitespace(c) || c == ARGO_COMMA){
+            if (c == ARGO_COMMA){
+                if (nextFlag){ fprintf(stderr, "comma place is wrong. %d\n",__LINE__);  return -1; }
+                nextFlag = 1;
+                char d = fgetc(f);
+                if (d == ARGO_RBRACK){
+                    fprintf(stderr, "comma place is wrong. %d\n",__LINE__);  
+                    return -1;
+                }
+                else{
+                    ungetc(d,f);
+                }
+            }
+            c = fgetc(f);
+            continue;
+        }
+        else if (argo_is_digit(c) || c == ARGO_MINUS ||(c == ARGO_T || c == ARGO_F || c == ARGO_N) || c == ARGO_QUOTE || c == ARGO_LBRACK || c == ARGO_LBRACE){ 
+            if (!nextFlag){ fprintf(stderr, "comma place is wrong. %d\n",__LINE__);  return -1; }
+            nextFlag = 0;
+            ARGO_VALUE * last = a -> element_list -> prev;
+            (argo_value_storage + argo_next_value) -> prev = last;
+            (argo_value_storage + argo_next_value) -> next = a -> element_list;
+            a -> element_list -> prev = argo_value_storage + argo_next_value;
+            last -> next = argo_value_storage + argo_next_value;
+            if (argo_is_digit(c) || c == ARGO_MINUS){
+                ungetc(c,f);
+                (argo_value_storage + argo_next_value) -> type  = ARGO_NUMBER_TYPE;
+                if (argo_read_number(&((argo_value_storage + argo_next_value) -> content.number), f) == -1){ return -1;}
+                argo_next_value += 1;
+            }
+            else if (c == ARGO_T || c == ARGO_F || c == ARGO_N){
+                ungetc(c,f);
+                (argo_value_storage + argo_next_value) -> type = ARGO_BASIC_TYPE;
+                if (argo_read_basic(argo_value_storage + argo_next_value, f) == -1){ return -1;}
+                argo_next_value += 1;
+            }
+            else if (c == ARGO_QUOTE){
+                (argo_value_storage + argo_next_value) -> type = ARGO_STRING_TYPE;
+                if (argo_read_string(&((argo_value_storage + argo_next_value) -> content.string), f) == -1){ return -1;}
+                argo_next_value += 1;
+            }
+            else if (c == ARGO_LBRACK){
+                (argo_value_storage + argo_next_value) -> type = ARGO_ARRAY_TYPE;
+                if (argo_read_array(&((argo_value_storage + argo_next_value) -> content.array), f) == -1){ return -1;}
+            }
+            else if (c == ARGO_LBRACE){
+                (argo_value_storage + argo_next_value) -> type = ARGO_OBJECT_TYPE;
+                if (argo_read_object(&((argo_value_storage + argo_next_value) -> content.object), f) == -1){ return -1;}
+            }
+        }
+        else{ 
+            fprintf(stderr, "unknown character found. Possible that wrong format given.%d\n",__LINE__); 
+            return -1;
+        }
+        c = fgetc(f);
+    }
+    return 0;
+}
+
+int argo_read_object(ARGO_OBJECT *o, FILE *f) {
+    argo_next_value += 1;
+    o -> member_list = argo_value_storage + argo_next_value;
+    o -> member_list -> next = o -> member_list;
+    o -> member_list -> prev = o -> member_list;
+    argo_next_value += 1;
+    int flag = 1;   // 1 == name turn, 2 == quote turn, 3 == content turn
+    char c = fgetc(f);
+    while(c != ARGO_RBRACE){
+        if (flag == 1){         // name turn 
+            if (argo_is_whitespace(c)){
+                c = fgetc(f);
+                continue;
+            }
+            else if (c == ARGO_QUOTE){
+                ARGO_VALUE * last = o -> member_list -> prev;
+                (argo_value_storage + argo_next_value) -> prev = last;
+                (argo_value_storage + argo_next_value) -> next = o -> member_list;
+                o -> member_list -> prev = argo_value_storage + argo_next_value;
+                last -> next = argo_value_storage + argo_next_value;
+                (argo_value_storage + argo_next_value) -> type  = ARGO_STRING_TYPE;
+                if (argo_read_string(&((argo_value_storage + argo_next_value) -> name), f) == -1){ return -1;}
+                flag = 2;
+            }
+            else{
+                fprintf(stderr, "Wrong object format is given.\n"); 
+                return -1;
+            }
+        }
+        else if (flag == 2){    // quote turn
+                if (argo_is_whitespace(c)){
+                    c = fgetc(f);
+                    continue;
+                }
+                else if (c == ARGO_COLON){
+                    flag = 3;
+                }  
+                else{
+                    fprintf(stderr, "wrong colon format.\n"); 
+                    return -1;
+                }        
+        }
+        else if (flag == 3){    // content turn
+            if (argo_is_whitespace(c)){
+                c = fgetc(f);
+                continue;
+            }
+            else if (argo_is_digit(c) || c == ARGO_MINUS || (c == ARGO_T || c == ARGO_F || c == ARGO_N) || c == ARGO_QUOTE || c == ARGO_LBRACE || c == ARGO_LBRACK ){ 
+                flag = 1;
+                if (argo_is_digit(c) || c == ARGO_MINUS){
+                    ungetc(c,f);
+                    (argo_value_storage + argo_next_value) -> type  = ARGO_NUMBER_TYPE;
+                    if (argo_read_number(&((argo_value_storage + argo_next_value) -> content.number), f) == -1){ return -1;}
+                    argo_next_value += 1;
+                }
+                else if (c == ARGO_T || c == ARGO_F || c == ARGO_N){
+                    ungetc(c,f);
+                    (argo_value_storage + argo_next_value) -> type = ARGO_BASIC_TYPE;
+                    if (argo_read_basic(argo_value_storage + argo_next_value, f) == -1){ return -1;}
+                    argo_next_value += 1;
+                }
+                else if (c == ARGO_QUOTE){
+                    (argo_value_storage + argo_next_value) -> type = ARGO_STRING_TYPE;
+                    if (argo_read_string(&((argo_value_storage + argo_next_value) -> content.string), f) == -1){ return -1;}
+                    argo_next_value += 1;
+                }
+                else if (c == ARGO_LBRACE){
+                    (argo_value_storage + argo_next_value) -> type = ARGO_OBJECT_TYPE;
+                    if (argo_read_object(&((argo_value_storage + argo_next_value) -> content.object), f) == -1){ return -1;}
+                }
+                else if (c == ARGO_LBRACK){
+                    (argo_value_storage + argo_next_value) -> type = ARGO_ARRAY_TYPE;
+                    if (argo_read_array(&((argo_value_storage + argo_next_value) -> content.array), f) == -1){ return -1;}
+                }
+                c = fgetc(f);
+                while (argo_is_whitespace(c)){
+                    c = fgetc(f);
+                }
+                if (c == ARGO_RBRACE){
+                    ungetc(c,f);
+                }
+                else if (c == ARGO_COMMA){
+                    flag = 1;
+                }
+                else{
+                    debug("%c",c);
+                    fprintf(stderr, "unknown character found. Possible that wrong format given.%d\n",__LINE__); 
+                    return -1;
+                }
+            }
+            else{ 
+                fprintf(stderr, "unknown character found. Possible that wrong format given.%d\n",__LINE__); 
+                return -1;
+            }
+                
+        }
+        c = fgetc(f);
+    }
+    return 0;
+}
 
 /**
  * @brief  Write canonical JSON representing a specified value to
@@ -118,7 +561,7 @@ int argo_write_value(ARGO_VALUE *v, FILE *f) {
         return -1;
     }
     else if (v -> type == ARGO_BASIC_TYPE){         // basic (True, False, Null)
-        argo_write_basic(v, stdout);
+        argo_write_basic(v, f);
     }
     else if (v -> type == ARGO_NUMBER_TYPE){        // number
         argo_write_number(& v -> content.number, f);
@@ -133,7 +576,7 @@ int argo_write_value(ARGO_VALUE *v, FILE *f) {
         argo_write_array(& v -> content.array, f);
     }
     if(indentation){
-        putchar(ARGO_LF);
+        fputc(ARGO_LF,f);
     }
     return 1;
 }
@@ -161,60 +604,60 @@ int argo_write_value(ARGO_VALUE *v, FILE *f) {
 int argo_write_string(ARGO_STRING *s, FILE *f) {
     debug("Processing String");
     size_t count = 0;
-    putchar(ARGO_QUOTE); 
+    fputc(ARGO_QUOTE,f); 
     while (count != s -> length){
         if ( *((s -> content) + count) == ARGO_BS){
-            putchar(ARGO_BSLASH);
-            putchar(ARGO_B);
+            fputc(ARGO_BSLASH,f);
+            fputc(ARGO_B,f);
         }
         else if ( *((s -> content) + count) == ARGO_FF){
-            putchar(ARGO_BSLASH);
-            putchar(ARGO_F);
+            fputc(ARGO_BSLASH,f);
+            fputc(ARGO_F,f);
         }
         else if ( *((s -> content) + count) == ARGO_LF){
-            putchar(ARGO_BSLASH);
-            putchar(ARGO_N);
+            fputc(ARGO_BSLASH,f);
+            fputc(ARGO_N,f);
         }
         else if ( *((s -> content) + count) == ARGO_CR){
-            putchar(ARGO_BSLASH);
-            putchar(ARGO_R);
+            fputc(ARGO_BSLASH,f);
+            fputc(ARGO_R,f);
         }
         else if ( *((s -> content) + count) == ARGO_HT){
-            putchar(ARGO_BSLASH);
-            putchar(ARGO_T);
+            fputc(ARGO_BSLASH,f);
+            fputc(ARGO_T,f);
         }
         else if (*((s -> content) + count) == ARGO_BSLASH){
-            putchar(ARGO_BSLASH);
-            putchar(ARGO_BSLASH);
+            fputc(ARGO_BSLASH,f);
+            fputc(ARGO_BSLASH,f);
         }
         else if (*((s -> content) + count) == ARGO_QUOTE){
-            putchar(ARGO_BSLASH);
-            putchar(ARGO_QUOTE);
+            fputc(ARGO_BSLASH, f);
+            fputc(ARGO_QUOTE, f);
         }
         else if ( 0x001F < *((s -> content) + count) && *((s -> content) + count) <  0x00FF){
-            putchar(*((s -> content) + count));
+            fputc(*((s -> content) + count), f);
         }
         else{
-            putchar(ARGO_BSLASH);
-            putchar(ARGO_U);
+            fputc(ARGO_BSLASH, f);
+            fputc(ARGO_U, f);
             int number = *((s -> content) + count);
             int divisor = 4096;
             while(divisor != 0){
                 if (number >= divisor){
                     int dividend = number/divisor;
                     debug("%d",dividend);
-                    intToHex(dividend);
+                    intToHex(dividend, f);
                     number -= divisor * dividend;
                 }
                 else{
-                    putchar('0');
+                    fputc('0',f);
                 }
                 divisor /= 16;
             }
         }
         count ++;
     }
-    putchar(ARGO_QUOTE);
+    fputc(ARGO_QUOTE, f);
     return 0;
 }
 
@@ -243,7 +686,7 @@ int argo_write_number(ARGO_NUMBER *n, FILE *f) {
     if (n -> valid_int){
         long number = n -> int_value; 
         if (number == 0){
-            putchar(ARGO_DIGIT0);
+            fputc(ARGO_DIGIT0, f);
 
         }
         else{
@@ -264,7 +707,7 @@ int argo_write_number(ARGO_NUMBER *n, FILE *f) {
                     flag = 1;
                 }
                 if (flag){
-                    putchar(*(argo_digits + counter));
+                    fputc(*(argo_digits + counter),f);
                 }
                 counter -= 1;
             }
@@ -280,9 +723,9 @@ int argo_write_number(ARGO_NUMBER *n, FILE *f) {
             number *= -1;
         }
         if (number == 0){
-            putchar(ARGO_DIGIT0);
-            putchar(ARGO_PERIOD);
-            putchar(ARGO_DIGIT0);
+            fputc(ARGO_DIGIT0, f);
+            fputc(ARGO_PERIOD, f);
+            fputc(ARGO_DIGIT0, f);
         }
         else{
             while(!(0.1 <= number && number < 1.0)){
@@ -299,22 +742,22 @@ int argo_write_number(ARGO_NUMBER *n, FILE *f) {
             debug("exponent : %d", exponent);
             int counter = 1;
             if (isNegative){
-                putchar('-');
+                fputc('-',f);
             }
-            putchar('0');
-            putchar(ARGO_PERIOD);
+            fputc('0', f);
+            fputc(ARGO_PERIOD, f);
             while(counter <= ARGO_PRECISION + 1 && number != 0){
                 number *= 10;
                 int place = (int)number ;
                 debug("place is %d",place);
-                putchar(place + '0');
+                fputc(place + '0', f);
                 number -= place;
                 counter += 1;
             }
             if (exponent != 0){
-                putchar(ARGO_E);
+                fputc(ARGO_E, f);
                 if (exponent < 0){
-                    putchar(ARGO_MINUS);
+                    fputc(ARGO_MINUS, f);
                     exponent *= -1;
                 }
 
@@ -335,7 +778,7 @@ int argo_write_number(ARGO_NUMBER *n, FILE *f) {
                         flag = 1;
                     }
                     if (flag){
-                        putchar(*(argo_digits + counter));
+                        fputc(*(argo_digits + counter), f);
                     }
                     counter -= 1;
                 }
@@ -361,20 +804,20 @@ int argo_write_basic(ARGO_VALUE *v, FILE *f) {
 
 int argo_write_object(ARGO_OBJECT *o, FILE *f) {
     debug("Processing Object");
-    putchar(ARGO_LBRACE);
+    fputc(ARGO_LBRACE, f);
     if(indentation){
-        putchar(ARGO_LF);
+        fputc(ARGO_LF, f);
     }
     indent_level += 1;
     ARGO_VALUE *node = o -> member_list -> next;
     while (node -> type != ARGO_NO_TYPE){
         if (indentation){
-            spaceGenerator(indentation * indent_level);
+            spaceGenerator(indentation * indent_level, f);
         }
         argo_write_string(& node -> name, f);
-        putchar(ARGO_COLON);
+        fputc(ARGO_COLON, f);
         if(indentation){
-            putchar(ARGO_SPACE);
+            fputc(ARGO_SPACE, f);
         }        
         if (node -> type == ARGO_BASIC_TYPE){         // basic (True, False, Null)
             argo_write_basic(node, f);
@@ -393,31 +836,31 @@ int argo_write_object(ARGO_OBJECT *o, FILE *f) {
         }
         node = node -> next;
         if (node -> type != ARGO_NO_TYPE){
-            putchar(ARGO_COMMA); 
+            fputc(ARGO_COMMA, f); 
         }
         if(indentation){
-            putchar(ARGO_LF);
+            fputc(ARGO_LF, f);
         }
     }
     indent_level -= 1;
     if (indentation){
-        spaceGenerator(indentation * indent_level);
+        spaceGenerator(indentation * indent_level, f);
     }
-    putchar(ARGO_RBRACE);
+    fputc(ARGO_RBRACE, f);
     return 0;
 }
 
 int argo_write_array(ARGO_ARRAY *a, FILE *f) {
     debug("Processing Array");
-    putchar(ARGO_LBRACK);
+    fputc(ARGO_LBRACK, f);
     if(indentation){
-        putchar(ARGO_LF);
+        fputc(ARGO_LF, f);
     }
     indent_level += 1;
     ARGO_VALUE *node = a -> element_list -> next;
     while (node -> type != ARGO_NO_TYPE){
         if (indentation){
-            spaceGenerator(indentation * indent_level);
+            spaceGenerator(indentation * indent_level, f);
         }
         if (node -> type == ARGO_BASIC_TYPE){         // basic (True, False, Null)
             argo_write_basic(node, stdout);
@@ -436,23 +879,23 @@ int argo_write_array(ARGO_ARRAY *a, FILE *f) {
         }
         node = node -> next;
         if (node -> type != ARGO_NO_TYPE){
-            putchar(ARGO_COMMA); 
+            fputc(ARGO_COMMA, f); 
         }
         if(indentation){
-            putchar(ARGO_LF);
+            fputc(ARGO_LF, f);
         }
     }
     indent_level -= 1;
     if (indentation){
-        spaceGenerator(indentation * indent_level);
+        spaceGenerator(indentation * indent_level, f);
     }
-    putchar(ARGO_RBRACK);
+    fputc(ARGO_RBRACK, f);
     return 0;
 }
 
-int intToHex(int value){
+int intToHex(int value, FILE *f){
     if (value < 10){
-        putchar(value + 48);
+        fputc(value + '0', f);
         return 0;
     }
     else if (value == 10){putchar('a');}
@@ -464,35 +907,24 @@ int intToHex(int value){
     return 0;
 }
 
-int spaceGenerator(long spaceRequired){
+int spaceGenerator(long spaceRequired, FILE *f){
     long counter = 0;
     while (counter < spaceRequired){
-        putchar(ARGO_SPACE);
+        fputc(ARGO_SPACE, f);
         counter += 1;
     }
     return 0;
 }
 
-
-        // double x = n -> valid_float;
-        // int exp;
-        // double mantissa = frexp (x, &exp);
-        // debug("%d",exp);
-        
-        // double L = *((long *) & x);
-        // byte s = (byte)(L >> 63);
-        // int e = ((int)(L >> 52) & 0x7FF) - 0x3FF;
-        // long f = (L & 0x000FFFFFFFFFFFFF);
-
-
-    // if (n -> valid_string != 0){       // can be represented as int
-    //     int count = 0;
-    //     while (count != n -> string_value.length){
-    //     putchar(*((n -> string_value.content) + count));
-    //     // debug("%c",*((n -> string_value.content) + count));
-    //     count ++;
-    //     }
-    // }
-    // else{
-    //     debug("corresponding number of valid string not exist");
-    // }
+int hexToInt(char c){
+    if (argo_is_digit(c)){
+        return c - '0';
+    }
+    else if (c == 'A' || c == 'a'){return 10;}
+    else if (c == 'B' || c == 'b'){return 11;}
+    else if (c == 'C' || c == 'c'){return 12;}
+    else if (c == 'D' || c == 'd'){return 13;}
+    else if (c == 'E' || c == 'e'){return 14;}
+    else if (c == 'F' || c == 'f'){return 15;}
+    else {return -1;}
+}

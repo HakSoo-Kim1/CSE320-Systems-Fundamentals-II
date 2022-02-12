@@ -35,8 +35,14 @@ int main(int argc, char **argv)
         return EXIT_SUCCESS;
     }
     ARGO_VALUE * argoVal =  argo_read_value(stdin);
+    if (argoVal -> content.number.valid_float == 1 && argoVal -> content.number.valid_int == 0){
+        debug("%f", argoVal -> content.number.float_value);
+    }
+    else{
+        debug("%ld", argoVal -> content.number.int_value);
+        debug("%f", argoVal -> content.number.float_value);
 
-    // argo_write_number(& argoVal -> content.number,stdin);
+    }
     argo_write_value(argoVal, stdout);
 
     return EXIT_SUCCESS;
