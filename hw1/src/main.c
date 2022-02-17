@@ -22,9 +22,7 @@
 int main(int argc, char **argv)
 {   
     int isValid = validargs(argc, argv);
-    debug("The result is %d",isValid);
-    debug("global options is %X",global_options);
-    if (isValid == -1){
+    if (isValid != 0){
         fprintf(stderr, "Wrong argument form\n");                   /// how can I see this? 
         USAGE(*argv, EXIT_FAILURE);                                 
         return EXIT_FAILURE;
@@ -34,16 +32,24 @@ int main(int argc, char **argv)
         USAGE(*argv, EXIT_SUCCESS);
         return EXIT_SUCCESS;
     }
-    ARGO_VALUE * argoVal =  argo_read_value(stdin);
-    if (argoVal -> content.number.valid_float == 1 && argoVal -> content.number.valid_int == 0){
-        debug("%f", argoVal -> content.number.float_value);
+
+    if ((global_options & VALIDATE_OPTION) == VALIDATE_OPTION ){
+        ARGO_VALUE * argoVal =  argo_read_value(stdin);
+        if (argoVal == NULL){
+            return EXIT_FAILURE;
+        }
+        return EXIT_SUCCESS;
     }
-    else{
-        debug("%ld", argoVal -> content.number.int_value);
-        debug("%f", argoVal -> content.number.float_value);
+
+    ARGO_VALUE * argoVal =  argo_read_value(stdin);
+    if (argoVal == NULL){
+        return EXIT_FAILURE;
 
     }
-    argo_write_value(argoVal, stdout);
+    isValid = argo_write_value(argoVal, stdout);
+    if (isValid != 0){
+        return EXIT_FAILURE;
+    }
 
     return EXIT_SUCCESS;
 }
