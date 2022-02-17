@@ -516,6 +516,17 @@ int argo_read_object(ARGO_OBJECT *o, FILE *f) {
                 }
                 else if (c == ARGO_COMMA){
                     flag = 1;
+                    c = fgetc(f);
+                    while (argo_is_whitespace(c)){
+                        c = fgetc(f);
+                    }
+                    if (c == ARGO_RBRACE){
+                        fprintf(stderr, "right brace cannot be after comma\n"); 
+                        return -1;
+                    }
+                    else{
+                        ungetc(c,f);
+                    }
                 }
                 else{
                     debug("%c",c);
@@ -530,7 +541,7 @@ int argo_read_object(ARGO_OBJECT *o, FILE *f) {
                 
         }
         c = fgetc(f);
-    }
+    } /// but what if flag end with 1 or 2 or 3? 
     return 0;
 }
 
@@ -685,9 +696,13 @@ int argo_write_number(ARGO_NUMBER *n, FILE *f) {
 
     if (n -> valid_int){
         long number = n -> int_value; 
+        int isNegative = 0;
+        if (number < 0){
+            isNegative = 1;
+            number *= -1;
+        }
         if (number == 0){
             fputc(ARGO_DIGIT0, f);
-
         }
         else{
             int counter = 0; 
@@ -699,6 +714,9 @@ int argo_write_number(ARGO_NUMBER *n, FILE *f) {
             if (number != 0){
                 fprintf(stderr, "only maximum %d digits numbers allowed \n", ARGO_MAX_DIGITS);                   /// good? 
                 return -1;
+            }
+            if (isNegative){
+                fputc('-',f);
             }
             counter = ARGO_MAX_DIGITS - 1;
             int flag = 0;
