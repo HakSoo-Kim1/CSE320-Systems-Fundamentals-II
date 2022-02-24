@@ -11,7 +11,8 @@
 #include "reformat.h"  /* Makes sure we're consistent with the prototype. */
 #include "buffer.h"    /* Also includes <stddef.h>.                       */
 #include "errmsg.h"
-
+#include "debug.h"
+#include <stdio.h>
 #include <stdlib.h>
 #include <ctype.h>
 #include <string.h>
@@ -192,7 +193,7 @@ char **reformat(const char * const *inlines, int width,
     for (end = *line;  *end;  ++end);
     if (end - *line < affix) {
       sprintf(errmsg,
-              "Line %d shorter than <prefix> + <suffix> = %d + %d = %d\n",
+              "Line %ld shorter than <prefix> + <suffix> = %d + %d = %d\n",
               line - inlines + 1, prefix, suffix, affix);
       goto rfcleanup;
     }
@@ -300,6 +301,7 @@ rfcleanup:
         if (!outlines) break;
         free(*outlines);
       }
+    debug("SUCCESSFUL so far");
     freebuffer(pbuf);
   }
 

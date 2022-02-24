@@ -16,6 +16,7 @@
 #include "buffer.h"  /* Makes sure we're consistent with the */
                      /* prototypes. Also includes <stddef.h> */
 #include "errmsg.h"
+#include "debug.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -85,12 +86,14 @@ void freebuffer(struct buffer *buf)
 
   blk = buf->firstblk;
   while (blk) {
+    debug("RUNNING");
     tmp = blk;
     blk = blk->next;
     if (tmp->items) free(tmp->items);
     free(tmp);
+    debug("SUCCESS");
   }
-
+  debug("DONE FREEBUFFER");
   free(buf);
 }
 

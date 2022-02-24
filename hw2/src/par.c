@@ -11,7 +11,7 @@
 #include "errmsg.h"
 #include "buffer.h"    /* Also includes <stddef.h>. */
 #include "reformat.h"
-
+#include "debug.h"
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -212,7 +212,7 @@ static void setdefaults(
   for (line = inlines;  *line;  ++line);
   numlines = line - inlines;
 
-  if (*pprefix < 0)
+  if (*pprefix < 0){
     if (numlines <= *phang + 1)
       *pprefix = 0;
     else {
@@ -224,8 +224,9 @@ static void setdefaults(
       }
       *pprefix = end - start;
     }
+  }
 
-  if (*psuffix < 0)
+  if (*psuffix < 0){
     if (numlines <= 1)
       *psuffix = 0;
     else {
@@ -241,6 +242,7 @@ static void setdefaults(
       while (end - start >= 2 && isspace(*start) && isspace(start[1])) ++start;
       *psuffix = end - start;
     }
+  }
 }
 
 
@@ -257,7 +259,7 @@ static void freelines(char **lines)
 }
 
 
-main(int argc, const char * const *argv)
+int original_main(int argc, const char * const *argv)
 {
   int width, widthbak = -1, prefix, prefixbak = -1, suffix, suffixbak = -1,
       hang, hangbak = -1, last, lastbak = -1, min, minbak = -1, c;
@@ -293,9 +295,11 @@ main(int argc, const char * const *argv)
   for (;;) {
     for (;;) {
       c = getchar();
+      if (c == EOF) break;
       if (c != '\n') break;
       putchar(c);
     }
+    if(c == EOF) break;
     ungetc(c,stdin);
 
     inlines = readlines();
@@ -310,10 +314,11 @@ main(int argc, const char * const *argv)
     hang = hangbak;  last = lastbak;  min = minbak;
     setdefaults((const char * const *) inlines,
                 &width, &prefix, &suffix, &hang, &last, &min);
-
+    debug("BEFORE sREFORMAT");
     outlines = reformat((const char * const *) inlines,
                         width, prefix, suffix, hang, last, min);
     if (*errmsg) goto parcleanup;
+    debug("AFTER REFORMAT");
 
     freelines(inlines);
     inlines = NULL;
