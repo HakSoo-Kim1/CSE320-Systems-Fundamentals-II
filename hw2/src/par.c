@@ -132,7 +132,7 @@ static char **readlines(void)
 {
   struct buffer *cbuf = NULL, *pbuf = NULL;
   int c, blank;
-  char ch, *ln, *nullline = NULL, nullchar = '\0', **lines = NULL;
+  char ch, *ln = NULL, *nullline = NULL, nullchar = '\0', **lines = NULL;
 
   cbuf = newbuffer(sizeof (char));
   if (*errmsg) goto rlcleanup;
@@ -147,13 +147,10 @@ static char **readlines(void)
         ungetc(c,stdin);
         break;
       }
-      debug("1");
       additem(cbuf, &nullchar);
       if (*errmsg) goto rlcleanup;
-      debug("2");
       ln = copyitems(cbuf);
       if (*errmsg) goto rlcleanup;
-      debug("3");
       additem(pbuf, &ln);
       if (*errmsg) goto rlcleanup;
       // ln = NULL;
@@ -164,7 +161,6 @@ static char **readlines(void)
     else {
       if (!isspace(c)) blank = 0;
       ch = c;
-      debug("4");
       additem(cbuf, &ch);
       if (*errmsg) goto rlcleanup;
     }
@@ -231,7 +227,7 @@ static void setdefaults(
       *pprefix = end - start;
     }
   }
-
+  debug("prefix is : %d",*pprefix);
   if (*psuffix < 0){
     if (numlines <= 1)
       *psuffix = 0;
@@ -239,7 +235,7 @@ static void setdefaults(
       start = *inlines;
       for (end = start;  *end;  ++end);
       for (line = inlines + 1;  *line;  ++line) {
-        for (p2 = *line;  *p2;  ++p2)
+        for (p2 = *line;  *p2;  ++p2);
         for (p1 = end;
              p1 > start && p2 > *line && p1[-1] == p2[-1];
              --p1, --p2);
@@ -247,20 +243,21 @@ static void setdefaults(
       }
       while (end - start >= 2 && isspace(*start) && isspace(start[1])) ++start;
       *psuffix = end - start;
+      debug("sufix is : %d",*psuffix);
     }
   }
 }
+
 
 
 static void freelines(char **lines)
 /* Frees the strings pointed to in the NULL-terminated array lines, then */
 /* frees the array. Does not use errmsg because it always succeeds.      */
 {
-  char *line;
 
-  for (line = *lines;  *line;  ++line)
-    free(line);
-
+  for (char **line = lines; *line;  ++line){
+    free(*line);
+  }
   free(lines);
 }
 
@@ -269,8 +266,8 @@ int original_main(int argc, const char * const *argv)
 {
   int width, widthbak = -1, prefix, prefixbak = -1, suffix, suffixbak = -1,
       hang, hangbak = -1, last, lastbak = -1, min, minbak = -1, c;
-  char *parinit, *picopy = NULL, *opt, **inlines = NULL, **outlines = NULL,
-       **line;
+  char *parinit = NULL, *picopy = NULL, *opt = NULL, **inlines = NULL, **outlines = NULL,
+       **line = NULL;
   const char * const whitechars = " \f\n\r\t\v";
 
   parinit = getenv("PARINIT");
@@ -302,7 +299,9 @@ int original_main(int argc, const char * const *argv)
     for (;;) {
       c = getchar();
       if (c == EOF) break;
+
       if (c != '\n') break;
+
       putchar(c);
     }
     if(c == EOF) break;

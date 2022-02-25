@@ -42,7 +42,7 @@ static int choosebreaks(
 /* min is <min>). head must point to a dummy word, and tail  */
 /* must point to the last word. Returns <newL>. Uses errmsg. */
 {
-  struct word *w1, *w2;
+  struct word *w1 = NULL, *w2 = NULL;
   int linelen, shortest, newL, score, minlen, diff, sumsqdiff;
   const char * const impossibility =
     "Impossibility #%d has occurred. Please report it.\n";
@@ -159,7 +159,7 @@ char **reformat(const char * const *inlines, int width,
 {
   int numin, numout, affix, L, linelen, newL;
   const char * const *line, **suffixes = NULL, **suf, *end, *p1, *p2;
-  char *q1, *q2, **outlines;
+  char *q1 = NULL, *q2 = NULL, **outlines = NULL;
   struct word dummy, *head, *tail, *w1, *w2;
   struct buffer *pbuf = NULL;
 
@@ -188,19 +188,26 @@ char **reformat(const char * const *inlines, int width,
 
   affix = prefix + suffix;
   L = width - prefix - suffix;
-
+  debug("width is : %d",width);
+  debug("prefix is : %d",prefix);
+  debug("suffix is : %d", suffix);
+  debug("L is: %d",L);
   for (line = inlines, suf = suffixes;  *line;  ++line, ++suf) {
+    debug("1");
     for (end = *line;  *end;  ++end);
+      debug("2!");
     if (end - *line < affix) {
       sprintf(errmsg,
               "Line %ld shorter than <prefix> + <suffix> = %d + %d = %d\n",
               line - inlines + 1, prefix, suffix, affix);
       goto rfcleanup;
     }
+    debug("2");
     end -= suffix;
     *suf = end;
     p1 = *line + prefix;
     for (;;) {
+      debug("3");
       while (p1 < end && isspace(*p1)) ++p1;
       if (p1 == end) break;
       p2 = p1;
