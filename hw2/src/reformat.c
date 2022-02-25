@@ -284,7 +284,7 @@ char **reformat(const char * const *inlines, int width,
   if (*errmsg) goto rfcleanup;
 
   outlines = copyitems(pbuf);
-
+  debug("outlines in reformat is : %s",*outlines);
 rfcleanup:
 
   if (suffixes) free(suffixes);

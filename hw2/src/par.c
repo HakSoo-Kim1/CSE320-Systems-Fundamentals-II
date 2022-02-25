@@ -138,7 +138,7 @@ static char **readlines(void)
   if (*errmsg) goto rlcleanup;
   pbuf = newbuffer(sizeof (char *));
   if (*errmsg) goto rlcleanup;
-
+  debug("inside of readlines");
   for (blank = 1;  ; ) {
     c = getchar();
     if (c == EOF) break;
@@ -147,23 +147,28 @@ static char **readlines(void)
         ungetc(c,stdin);
         break;
       }
+      debug("1");
       additem(cbuf, &nullchar);
       if (*errmsg) goto rlcleanup;
+      debug("2");
       ln = copyitems(cbuf);
       if (*errmsg) goto rlcleanup;
+      debug("3");
       additem(pbuf, &ln);
       if (*errmsg) goto rlcleanup;
+      // ln = NULL;
+
       clearbuffer(cbuf);
       blank = 1;
     }
     else {
       if (!isspace(c)) blank = 0;
       ch = c;
+      debug("4");
       additem(cbuf, &ch);
       if (*errmsg) goto rlcleanup;
     }
   }
-
   if (!blank) {
     additem(cbuf, &nullchar);
     if (*errmsg) goto rlcleanup;
@@ -176,7 +181,7 @@ static char **readlines(void)
   additem(pbuf, &nullline);
   if (*errmsg) goto rlcleanup;
   lines = copyitems(pbuf);
-
+  debug("lines in readlines is : %s",*lines);
 rlcleanup:
 
   if (cbuf) freebuffer(cbuf);
@@ -187,6 +192,7 @@ rlcleanup:
         if (!lines) break;
         free(*lines);
       }
+    freebuffer(pbuf);
   }
 
   return lines;

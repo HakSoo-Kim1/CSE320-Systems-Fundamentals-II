@@ -68,6 +68,8 @@ struct buffer *newbuffer(size_t itemsize)
   blk->numprevious = blk->numhere = 0;
   blk->maxhere = maxhere;
   blk->items = items;
+  blk->next = NULL;
+
 
   *errmsg = '\0';
   return buf;
@@ -89,6 +91,7 @@ void freebuffer(struct buffer *buf)
     debug("RUNNING");
     tmp = blk;
     blk = blk->next;
+    debug("freeing : %s",(char *)tmp->items);
     if (tmp->items) free(tmp->items);
     free(tmp);
     debug("SUCCESS");
