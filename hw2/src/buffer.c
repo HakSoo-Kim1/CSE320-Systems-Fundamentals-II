@@ -16,10 +16,10 @@
 #include "buffer.h"  /* Makes sure we're consistent with the */
                      /* prototypes. Also includes <stddef.h> */
 #include "errmsg.h"
-#include "debug.h"
 
 #include <stdlib.h>
 #include <string.h>
+#include "debug.h"
 
 #undef NULL
 #define NULL ((void *) 0)
@@ -58,7 +58,8 @@ struct buffer *newbuffer(size_t itemsize)
   blk = (struct block *) malloc(sizeof (struct block));
   items = malloc(maxhere * itemsize);
   if (!buf || !blk || !items) {
-    strcpy(errmsg,outofmem);
+    set_error((char *)outofmem);
+    // strcpy(errmsg,outofmem);
     goto nberror;
   }
 
@@ -71,7 +72,8 @@ struct buffer *newbuffer(size_t itemsize)
   blk->next = NULL;
 
 
-  *errmsg = '\0';
+  clear_error();
+  // *errmsg = '\0';
   return buf;
 
   nberror:
@@ -88,15 +90,12 @@ void freebuffer(struct buffer *buf)
 
   blk = buf->firstblk;
   while (blk) {
-    debug("RUNNING");
     tmp = blk;
     blk = blk->next;
-    debug("freeing : %s",(char *)tmp->items);
     if (tmp->items) free(tmp->items);
     free(tmp);
-    debug("SUCCESS");
   }
-  debug("DONE FREEBUFFER");
+
   free(buf);
 }
 
@@ -128,7 +127,8 @@ void additem(struct buffer *buf, const void *item)
       new = (struct block * ) malloc(sizeof (struct block));
       items = malloc(maxhere * itemsize);
       if (!new || !items) {
-        strcpy(errmsg,outofmem);
+      set_error((char *)outofmem);
+      // strcpy(errmsg,outofmem);
         goto aierror;
       }
       blk->next = new;
@@ -145,7 +145,7 @@ void additem(struct buffer *buf, const void *item)
 
   ++blk->numhere;
 
-  *errmsg = '\0';
+  // *errmsg = '\0';
   return;
 
   aierror:
@@ -174,7 +174,8 @@ void *copyitems(struct buffer *buf)
 
   r = malloc(n * itemsize);
   if (!r) {
-    strcpy(errmsg,outofmem);
+    set_error((char *)outofmem);
+    // strcpy(errmsg,outofmem);
     return NULL;
   }
 
@@ -184,7 +185,8 @@ void *copyitems(struct buffer *buf)
     memcpy( ((char *) r) + (blk->numprevious * itemsize),
             blk->items, blk->numhere * itemsize);
 
-  *errmsg = '\0';
+  clear_error();
+  // *errmsg = '\0';
   return r;
 }
 

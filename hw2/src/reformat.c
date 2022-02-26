@@ -11,9 +11,10 @@
 #include "reformat.h"  /* Makes sure we're consistent with the prototype. */
 #include "buffer.h"    /* Also includes <stddef.h>.                       */
 #include "errmsg.h"
-#include "debug.h"
-#include <stdio.h>
+
 #include <stdlib.h>
+#include <stdio.h>
+#include "debug.h"
 #include <ctype.h>
 #include <string.h>
 
@@ -42,7 +43,7 @@ static int choosebreaks(
 /* min is <min>). head must point to a dummy word, and tail  */
 /* must point to the last word. Returns <newL>. Uses errmsg. */
 {
-  struct word *w1 = NULL, *w2 = NULL;
+  struct word *w1, *w2;
   int linelen, shortest, newL, score, minlen, diff, sumsqdiff;
   const char * const impossibility =
     "Impossibility #%d has occurred. Please report it.\n";
@@ -72,7 +73,8 @@ static int choosebreaks(
       }
     }
     if (w1->score < 0) {
-      sprintf(errmsg,impossibility,1);
+      set_error(    "Impossibility #1 has occurred. Please report it.\n");
+      // sprintf(errmsg,impossibility,1);
       return 0;
     }
   }
@@ -111,7 +113,8 @@ static int choosebreaks(
 
     newL = head->next ? head->next->score : 0;
     if (newL > L) {
-      sprintf(errmsg,impossibility,2);
+      set_error(    "Impossibility #2 has occurred. Please report it.\n");
+      // sprintf(errmsg,impossibility,2);
       return 0;
     }
   }
@@ -145,11 +148,12 @@ static int choosebreaks(
   }
 
   if (head->next && head->next->score < 0) {
-    sprintf(errmsg,impossibility,3);
+      set_error(    "Impossibility #3 has occurred. Please report it.\n");
+    // sprintf(errmsg,impossibility,3);
     return 0;
   }
 
-  *errmsg = '\0';
+  // *errmsg = '\0';
   return newL;
 }
 
@@ -159,13 +163,14 @@ char **reformat(const char * const *inlines, int width,
 {
   int numin, numout, affix, L, linelen, newL;
   const char * const *line, **suffixes = NULL, **suf, *end, *p1, *p2;
-  char *q1 = NULL, *q2 = NULL, **outlines = NULL;
+  char *q1, *q2, **outlines = NULL;
   struct word dummy, *head, *tail, *w1, *w2;
   struct buffer *pbuf = NULL;
 
 /* Initialization: */
 
-  *errmsg = '\0';
+  // *errmsg = '\0';
+  clear_error();
   dummy.next = dummy.prev = NULL;
   head = tail = &dummy;
 
@@ -179,35 +184,42 @@ char **reformat(const char * const *inlines, int width,
   if (numin) {
     suffixes = malloc(numin * sizeof (const char *));
     if (!suffixes) {
-      strcpy(errmsg,outofmem);
+      // strcpy(errmsg,outofmem);
+      set_error((char *)outofmem);
       goto rfcleanup;
     }
   }
-
+  debug("1");
 /* Set the pointers to the suffixes, and create the words: */
 
   affix = prefix + suffix;
   L = width - prefix - suffix;
-  debug("width is : %d",width);
-  debug("prefix is : %d",prefix);
-  debug("suffix is : %d", suffix);
-  debug("L is: %d",L);
+
   for (line = inlines, suf = suffixes;  *line;  ++line, ++suf) {
-    debug("1");
     for (end = *line;  *end;  ++end);
-      debug("2!");
     if (end - *line < affix) {
-      sprintf(errmsg,
-              "Line %ld shorter than <prefix> + <suffix> = %d + %d = %d\n",
+      debug("2");
+      char *buf; 
+      size_t len;
+      FILE *stream = open_memstream(&buf,&len);
+          fflush (stream);
+
+      fprintf(stream,"Line %ld shorter than <prefix> + <suffix> = %d + %d = %d\n",
               line - inlines + 1, prefix, suffix, affix);
+      debug("here");
+      debug("%s",buf);
+      set_error(buf);
+      debug("asd");
+      fclose(stream);
+      debug("123");
+      free(buf);
       goto rfcleanup;
     }
-    debug("2");
+    debug("3");
     end -= suffix;
     *suf = end;
     p1 = *line + prefix;
     for (;;) {
-      debug("3");
       while (p1 < end && isspace(*p1)) ++p1;
       if (p1 == end) break;
       p2 = p1;
@@ -215,7 +227,8 @@ char **reformat(const char * const *inlines, int width,
       if (p2 - p1 > L) p2 = p1 + L;
       w1 = malloc(sizeof (struct word));
       if (!w1) {
-        strcpy(errmsg,outofmem);
+        // strcpy(errmsg,outofmem);
+        set_error((char *)outofmem);
         goto rfcleanup;
       }
       w1->next = NULL;
@@ -226,7 +239,7 @@ char **reformat(const char * const *inlines, int width,
       p1 = p2;
     }
   }
-
+  // debug("2");
 /* Expand first word if preceeded only by spaces: */
 
   w1 = head->next;
@@ -240,15 +253,15 @@ char **reformat(const char * const *inlines, int width,
   }
 
 /* Choose line breaks according to policy in "par.doc": */
-
+  debug("4");
   newL = choosebreaks(head,tail,L,last,min);
-  if (*errmsg) goto rfcleanup;
+  if (is_error()) goto rfcleanup;
 
 /* Construct the lines: */
 
   pbuf = newbuffer(sizeof (char *));
-  if (*errmsg) goto rfcleanup;
-
+  if (is_error()) goto rfcleanup;
+  debug("4");
   numout = 0;
   w1 = head->next;
   while (numout < hang || w1) {
@@ -257,11 +270,12 @@ char **reformat(const char * const *inlines, int width,
                        prefix;
     q1 = malloc((linelen + 1) * sizeof (char));
     if (!q1) {
-      strcpy(errmsg,outofmem);
+      // strcpy(errmsg,outofmem);
+      set_error((char *)outofmem);
       goto rfcleanup;
     }
     additem(pbuf, &q1);
-    if (*errmsg) goto rfcleanup;
+    if (is_error()) goto rfcleanup;
     ++numout;
     q2 = q1 + prefix;
     if      (numout <= numin) memcpy(q1, inlines[numout - 1], prefix);
@@ -285,13 +299,13 @@ char **reformat(const char * const *inlines, int width,
     *q2 = '\0';
     if (w1) w1 = w1->nextline;
   }
-
+  debug("5");
   q1 = NULL;
   additem(pbuf, &q1);
-  if (*errmsg) goto rfcleanup;
+  if (is_error()) goto rfcleanup;
 
   outlines = copyitems(pbuf);
-  debug("outlines in reformat is : %s",*outlines);
+  debug("6");
 rfcleanup:
 
   if (suffixes) free(suffixes);
@@ -300,7 +314,7 @@ rfcleanup:
     tail = tail->prev;
     free(tail->next);
   }
-
+  debug("7");
   if (pbuf) {
     if (!outlines)
       for (;;) {
@@ -308,9 +322,9 @@ rfcleanup:
         if (!outlines) break;
         free(*outlines);
       }
-    debug("SUCCESSFUL so far");
+      debug("8");
     freebuffer(pbuf);
   }
-
+  debug("9");
   return outlines;
 }

@@ -91,7 +91,8 @@ static void parseopt(
   if (*opt == '-') ++opt;
 
   if (!strcmp(opt, "version")) {
-    sprintf(errmsg, "%s %s\n", progname, version);
+    // sprintf(errmsg, "%s %s\n", progname, version);
+    set_error("par 3.20\n");
     return;
   }
 
@@ -122,10 +123,11 @@ static void parseopt(
     else goto badopt;
   }
 
-  *errmsg = '\0';
+  // *errmsg = '\0';
   return;
 
 badopt:
+  // set_error()
   sprintf(errmsg, "Bad option: %.149s\n", saveopt);
 }
 
@@ -140,11 +142,14 @@ static char **readlines(void)
   struct buffer *cbuf = NULL, *pbuf = NULL;
   int c, blank;
   char ch, *ln = NULL, *nullline = NULL, nullchar = '\0', **lines = NULL;
+  debug("HERE");
 
   cbuf = newbuffer(sizeof (char));
-  if (*errmsg) goto rlcleanup;
+    debug("here");
+
+  if (is_error()) goto rlcleanup;
   pbuf = newbuffer(sizeof (char *));
-  if (*errmsg) goto rlcleanup;
+  if (is_error()) goto rlcleanup;
   debug("inside of readlines");
   for (blank = 1;  ; ) {
     c = getchar();
@@ -155,11 +160,11 @@ static char **readlines(void)
         break;
       }
       additem(cbuf, &nullchar);
-      if (*errmsg) goto rlcleanup;
+      if (is_error()) goto rlcleanup;
       ln = copyitems(cbuf);
-      if (*errmsg) goto rlcleanup;
+      if (is_error()) goto rlcleanup;
       additem(pbuf, &ln);
-      if (*errmsg) goto rlcleanup;
+      if (is_error()) goto rlcleanup;
       // ln = NULL;
 
       clearbuffer(cbuf);
@@ -169,20 +174,20 @@ static char **readlines(void)
       if (!isspace(c)) blank = 0;
       ch = c;
       additem(cbuf, &ch);
-      if (*errmsg) goto rlcleanup;
+      if (is_error()) goto rlcleanup;
     }
   }
   if (!blank) {
     additem(cbuf, &nullchar);
-    if (*errmsg) goto rlcleanup;
+    if (is_error()) goto rlcleanup;
     ln = copyitems(cbuf);
-    if (*errmsg) goto rlcleanup;
+    if (is_error()) goto rlcleanup;
     additem(pbuf, &ln);
-    if (*errmsg) goto rlcleanup;
+    if (is_error()) goto rlcleanup;
   }
 
   additem(pbuf, &nullline);
-  if (*errmsg) goto rlcleanup;
+  if (is_error()) goto rlcleanup;
   lines = copyitems(pbuf);
   debug("lines in readlines is : %s",*lines);
 rlcleanup:
@@ -283,7 +288,7 @@ int original_main(int argc, const char * const *argv)
   if (parinit) {
     picopy = malloc((strlen(parinit) + 1) * sizeof (char));
     if (!picopy) {
-      strcpy(errmsg,outofmem);
+      set_error((char *)outofmem);
       goto parcleanup;
     }
     strcpy(picopy,parinit);
@@ -291,7 +296,7 @@ int original_main(int argc, const char * const *argv)
     while (opt) {
       parseopt(opt, &widthbak, &prefixbak,
                &suffixbak, &hangbak, &lastbak, &minbak);
-      if (*errmsg) goto parcleanup;
+      if (is_error()) goto parcleanup;
       opt = strtok(NULL,whitechars);
     }
     free(picopy);
@@ -300,7 +305,7 @@ int original_main(int argc, const char * const *argv)
 
   custom_parseopt(argc, argv, &widthbak, &prefixbak,
              &suffixbak, &hangbak, &lastbak, &minbak);
-    if (*errmsg) goto parcleanup;
+    if (is_error()) goto parcleanup;
 
   debug("given width : %d",widthbak);
   debug("given hang : %d",hangbak);
@@ -320,9 +325,11 @@ int original_main(int argc, const char * const *argv)
     }
     if(c == EOF) break;
     ungetc(c,stdin);
+    debug("READING");
 
     inlines = readlines();
-    if (*errmsg) goto parcleanup;
+    debug("DONE READING");
+    if (is_error()) goto parcleanup;
     if (!*inlines) {
       free(inlines);
       inlines = NULL;
@@ -336,7 +343,8 @@ int original_main(int argc, const char * const *argv)
     debug("BEFORE sREFORMAT");
     outlines = reformat((const char * const *) inlines,
                         width, prefix, suffix, hang, last, min);
-    if (*errmsg) goto parcleanup;
+    debug("GOT here");
+    if (is_error()) goto parcleanup;
     debug("AFTER REFORMAT");
 
     freelines(inlines);
@@ -351,12 +359,16 @@ int original_main(int argc, const char * const *argv)
 
 parcleanup:
 
+  debug("1");
   if (picopy) free(picopy);
+  debug("2");
   if (inlines) freelines(inlines);
+  debug("3");
   if (outlines) freelines(outlines);
-
-  if (*errmsg) {
-    fprintf(stderr, "%.163s", errmsg);
+  debug("asdasdf");
+  if (is_error()) {
+    report_error(stderr);
+    clear_error();
     exit(EXIT_FAILURE);
   }
 
@@ -389,49 +401,49 @@ static void custom_parseopt(
     switch(option){
       case 'v':
       debug("\t version given ");
-      sprintf(errmsg, "%s %s\n", progname, version);
+      set_error("par 3.20\n");
       return;
       break;
 
       case 'w':
       debug("\t width given ");
       r = strtoudec(optarg, &n);
-      if (!r){ sprintf(errmsg, "Bad width\n"); return;}
+      if (!r){ set_error("Bad width\n"); return;}
       *pwidth  = n;
       break;
 
       case 'p':
       debug("\t prefix given ");
       r = strtoudec(optarg, &n);
-      if (!r){ sprintf(errmsg, "Bad prefix\n"); return;}
+      if (!r){ set_error("Bad prefix\n"); return;}
       *pprefix  = n;
       break;
 
       case 's':
       debug("\t suffix given ");
       r = strtoudec(optarg, &n);
-      if (!r){ sprintf(errmsg, "Bad suffix\n"); return;}
+      if (!r){ set_error("Bad suffix\n"); return;}
       *psuffix  = n;
       break;
 
       case 'h':
       debug("\t hang given ");
       r = strtoudec(optarg, &n);
-      if (!r){ sprintf(errmsg, "Bad hang\n"); return;}
+      if (!r){ set_error("Bad hang\n"); return;}
       *phang  = n;
       break;
 
       case 'l':
       debug("\t last given ");
       r = strtoudec(optarg, &n);
-      if (!r || n > 1){ sprintf(errmsg, "Bad last\n"); return;}
+      if (!r || n > 1){ set_error("Bad last\n"); return;}
       *plast  = n;
       break;
 
       case 'm':
       debug("\t min given ");
       r = strtoudec(optarg, &n);
-      if (!r || n > 1){ sprintf(errmsg, "Bad min\n"); return;}
+      if (!r || n > 1){ set_error("Bad min\n"); return;}
       *pmin  = n;
       break;
 
@@ -458,11 +470,12 @@ static void custom_parseopt(
       case '?':
         debug("wrong %d",optopt);
         debug("opt is : %d",option);
-        sprintf(errmsg, "Wrong argument given\n");
+        set_error("Wrong argument given\n");
         return;
 
     }
   }
-  *errmsg = '\0';
+  // set_error(NULL);
+  // *errmsg = '\0';
   return;
 }
