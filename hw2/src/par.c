@@ -16,10 +16,17 @@
 #include <string.h>
 #include <stdlib.h>
 #include <ctype.h>
+#include <getopt.h>
+
 
 #undef NULL
 #define NULL ((void *) 0)
 
+
+static void custom_parseopt(  
+  int argc,  const char *const *argv, int *pwidth, int *pprefix,
+  int *psuffix, int *phang, int *plast, int *pmin
+);
 
 const char * const progname = "par";
 const char * const version = "3.20";
@@ -267,7 +274,9 @@ int original_main(int argc, const char * const *argv)
   int width, widthbak = -1, prefix, prefixbak = -1, suffix, suffixbak = -1,
       hang, hangbak = -1, last, lastbak = -1, min, minbak = -1, c;
   char *parinit = NULL, *picopy = NULL, *opt = NULL, **inlines = NULL, **outlines = NULL,
-       **line = NULL;
+       **line = NULL; 
+  char ** custom_argv = NULL;
+
   const char * const whitechars = " \f\n\r\t\v";
 
   parinit = getenv("PARINIT");
@@ -289,11 +298,16 @@ int original_main(int argc, const char * const *argv)
     picopy = NULL;
   }
 
-  while (*++argv) {
-    parseopt(*argv, &widthbak, &prefixbak,
+  custom_parseopt(argc, argv, &widthbak, &prefixbak,
              &suffixbak, &hangbak, &lastbak, &minbak);
     if (*errmsg) goto parcleanup;
-  }
+
+  debug("given width : %d",widthbak);
+  debug("given hang : %d",hangbak);
+  debug("given last : %d",lastbak);
+  debug("given min : %d",minbak);
+  debug("given prefix : %d",prefixbak);
+  debug("given suffix : %d",suffixbak);
 
   for (;;) {
     for (;;) {
@@ -347,4 +361,108 @@ parcleanup:
   }
 
   exit(EXIT_SUCCESS);
+}
+
+static void custom_parseopt(  
+  int argc, const char * const *argv, int *pwidth, int *pprefix,
+  int *psuffix, int *phang, int *plast, int *pmin
+)
+{
+  int index = 0;
+  // const char *saveopt = ;;
+  int n, r = -1;
+  int option = -1;
+  struct option options[] = {
+    {"version", no_argument ,       NULL, 'v' },
+    {"width",   required_argument,  NULL, 'w' },
+    {"prefix",  required_argument,  NULL, 'p' },
+    {"suffix",  required_argument,  NULL, 's' },
+    {"hang",    required_argument,  NULL, 'h' },
+    {"last",    no_argument,        NULL, 0 },
+    {"no-last", no_argument,        NULL, 0 },
+    {"min",    no_argument,         NULL, 0 },
+    {"no-min",  no_argument,        NULL, 0 },
+    {NULL,0,NULL, 0}
+  };
+
+  while ((option = getopt_long(argc, (char * const*)argv, "-:w:p:s:h:l:m:", options, &index)) != -1){
+    switch(option){
+      case 'v':
+      debug("\t version given ");
+      sprintf(errmsg, "%s %s\n", progname, version);
+      return;
+      break;
+
+      case 'w':
+      debug("\t width given ");
+      r = strtoudec(optarg, &n);
+      if (!r){ sprintf(errmsg, "Bad width\n"); return;}
+      *pwidth  = n;
+      break;
+
+      case 'p':
+      debug("\t prefix given ");
+      r = strtoudec(optarg, &n);
+      if (!r){ sprintf(errmsg, "Bad prefix\n"); return;}
+      *pprefix  = n;
+      break;
+
+      case 's':
+      debug("\t suffix given ");
+      r = strtoudec(optarg, &n);
+      if (!r){ sprintf(errmsg, "Bad suffix\n"); return;}
+      *psuffix  = n;
+      break;
+
+      case 'h':
+      debug("\t hang given ");
+      r = strtoudec(optarg, &n);
+      if (!r){ sprintf(errmsg, "Bad hang\n"); return;}
+      *phang  = n;
+      break;
+
+      case 'l':
+      debug("\t last given ");
+      r = strtoudec(optarg, &n);
+      if (!r || n > 1){ sprintf(errmsg, "Bad last\n"); return;}
+      *plast  = n;
+      break;
+
+      case 'm':
+      debug("\t min given ");
+      r = strtoudec(optarg, &n);
+      if (!r || n > 1){ sprintf(errmsg, "Bad min\n"); return;}
+      *pmin  = n;
+      break;
+
+      case 0:
+        if (strcmp(options[index].name, "last") == 0){
+          debug("\t last given ");
+          *plast  = 1;
+        }
+        else if (strcmp(options[index].name, "no-last") == 0){
+          debug("\t no-last given ");
+          *plast  = 0;
+        }
+        else if (strcmp(options[index].name, "min") == 0){
+          debug("\t min given ");
+          *pmin  = 1;
+        }
+        else if (strcmp(options[index].name, "no-min") == 0){
+          debug("\t no-min given ");
+          *pmin  = 0;
+        }
+      break;
+
+      case 1:
+      case '?':
+        debug("wrong %d",optopt);
+        debug("opt is : %d",option);
+        sprintf(errmsg, "Wrong argument given\n");
+        return;
+
+    }
+  }
+  *errmsg = '\0';
+  return;
 }
