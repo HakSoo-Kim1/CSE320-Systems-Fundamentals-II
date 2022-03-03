@@ -127,8 +127,8 @@ static void parseopt(
   return;
 
 badopt:
-  // set_error()
-  sprintf(errmsg, "Bad option: %.149s\n", saveopt);
+  set_error("Bad Option");
+  // sprintf(errmsg, "Bad option: %.149s\n", saveopt);
 }
 
 
@@ -296,7 +296,8 @@ int original_main(int argc, const char * const *argv)
     opt = strtok(picopy,whitechars);
     custom_argv = malloc( sizeof( char * ) );
     if (!custom_argv){
-      strcpy(errmsg,outofmem);
+      set_error((char*)outofmem);
+      // strcpy(errmsg,outofmem);
       goto parcleanup;
     }
     int counter = 1;
@@ -387,8 +388,8 @@ parcleanup:
   if (is_error()) {
     report_error(stderr);
     clear_error();
-    // exit(EXIT_FAILURE);
-      exit(EXIT_SUCCESS);
+    exit(EXIT_FAILURE);
+      // exit(EXIT_SUCCESS);
 
 
   }

@@ -10,7 +10,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 
-static char *errmsg;
+// static char *errmsg;
 /**
  * @brief  Set an error indication, with a specified error message.
  * @param msg Pointer to the error message.  The string passed by the caller
@@ -41,4 +41,4 @@ int report_error(FILE *file);
 void clear_error();
 
 
-extern const char * const outofmem;  /* "Out of memory.\n" */
+extern char * outofmem;  /* "Out of memory.\n" */

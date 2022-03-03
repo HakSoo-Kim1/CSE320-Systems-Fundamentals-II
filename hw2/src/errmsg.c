@@ -14,7 +14,7 @@
 
 static char * errmsg = NULL;
 
-const char * const outofmem = "Out of memory.\n";
+char * outofmem = "Out of memory.\n";
 
 /**
  * @brief  Set an error indication, with a specified error message.
