@@ -18,10 +18,10 @@
 #include <ctype.h>
 #include <getopt.h>
 
-
 #undef NULL
 #define NULL ((void *) 0)
 
+static int versionFlag = 0;
 
 static void custom_parseopt(  
   int argc,  const char *const *argv, int *pwidth, int *pprefix,
@@ -309,10 +309,12 @@ int original_main(int argc, const char * const *argv)
       opt = strtok(NULL, whitechars);
     }
     custom_argv[counter - 1] = NULL;
+    for ( char **p = custom_argv; *p; ++p ){
+      debug("%s",*p);
+    }
     custom_parseopt(argc, (const char *const *)custom_argv, &widthbak, &prefixbak,
              &suffixbak, &hangbak, &lastbak, &minbak);
     if (is_error()) goto parcleanup;
-    debug("should not see this");
     for ( char **p = custom_argv; *p; ++p ){
       free(*p);
     }
@@ -321,11 +323,19 @@ int original_main(int argc, const char * const *argv)
     custom_argv = NULL;
     picopy = NULL;
   }
+  debug("\t PARINIT result : ");
+  debug("given width : %d",widthbak);
+  debug("given hang : %d",hangbak);
+  debug("given last : %d",lastbak);
+  debug("given min : %d",minbak);
+  debug("given prefix : %d",prefixbak);
+  debug("given suffix : %d",suffixbak);
 
   custom_parseopt(argc, argv, &widthbak, &prefixbak,
              &suffixbak, &hangbak, &lastbak, &minbak);
   if (is_error()) goto parcleanup;
 
+  debug("\t terminal argument result : ");
   debug("given width : %d",widthbak);
   debug("given hang : %d",hangbak);
   debug("given last : %d",lastbak);
@@ -387,11 +397,14 @@ parcleanup:
   if (outlines) freelines(outlines);
   if (is_error()) {
     report_error(stderr);
+    if (versionFlag){
+      debug("verstion");
+      clear_error();
+      exit(EXIT_SUCCESS);
+    }
+    debug("NOT version");
     clear_error();
     exit(EXIT_FAILURE);
-      // exit(EXIT_SUCCESS);
-
-
   }
 
   exit(EXIT_SUCCESS);
@@ -423,6 +436,7 @@ static void custom_parseopt(
       case 'v':
       debug("\t version given ");
       set_error("par 3.20\n");
+      versionFlag = 1;
       return;
       break;
 
