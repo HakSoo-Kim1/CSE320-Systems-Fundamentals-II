@@ -301,7 +301,6 @@ int original_main(int argc, const char * const *argv)
     }
     int counter = 1;
     while (opt) {
-      debug("help");
       custom_argv = realloc(custom_argv,(counter + 1) * sizeof(char *));
       ++counter;
       custom_argv[counter - 2] = malloc(strlen(opt) + 1);
@@ -322,13 +321,6 @@ int original_main(int argc, const char * const *argv)
     picopy = NULL;
   }
 
-  debug("given width : %d",widthbak);
-  debug("given hang : %d",hangbak);
-  debug("given last : %d",lastbak);
-  debug("given min : %d",minbak);
-  debug("given prefix : %d",prefixbak);
-  debug("given suffix : %d",suffixbak);
-  debug("");
   custom_parseopt(argc, argv, &widthbak, &prefixbak,
              &suffixbak, &hangbak, &lastbak, &minbak);
   if (is_error()) goto parcleanup;
@@ -344,15 +336,12 @@ int original_main(int argc, const char * const *argv)
     for (;;) {
       c = getchar();
       if (c == EOF) break;
-
       if (c != '\n') break;
-
       putchar(c);
     }
     if(c == EOF) break;
     ungetc(c,stdin);
     debug("READING");
-
     inlines = readlines();
     debug("DONE READING");
     if (is_error()) goto parcleanup;
@@ -398,7 +387,7 @@ parcleanup:
   if (is_error()) {
     report_error(stderr);
     clear_error();
-    exit(EXIT_SUCCESS);//////
+    exit(EXIT_FAILURE);
   }
 
   exit(EXIT_SUCCESS);
@@ -491,6 +480,22 @@ static void custom_parseopt(
         else if (strcmp(options[index].name, "no-min") == 0){
           debug("\t no-min given ");
           *pmin  = 0;
+        }
+      break;
+
+      case ':':
+        if(optopt == 'h'){
+          *phang = 1;
+        }
+        else if (optopt == 'l'){
+          *plast = 1;
+        }
+        else if (optopt == 'm'){
+          *pmin  = 1;
+        }
+        else{
+          set_error("Wrong argument given\n");
+          return;
         }
       break;
 
