@@ -301,6 +301,7 @@ int original_main(int argc, const char * const *argv)
     }
     int counter = 1;
     while (opt) {
+      debug("help");
       custom_argv = realloc(custom_argv,(counter + 1) * sizeof(char *));
       ++counter;
       custom_argv[counter - 2] = malloc(strlen(opt) + 1);
@@ -321,6 +322,13 @@ int original_main(int argc, const char * const *argv)
     picopy = NULL;
   }
 
+  debug("given width : %d",widthbak);
+  debug("given hang : %d",hangbak);
+  debug("given last : %d",lastbak);
+  debug("given min : %d",minbak);
+  debug("given prefix : %d",prefixbak);
+  debug("given suffix : %d",suffixbak);
+  debug("");
   custom_parseopt(argc, argv, &widthbak, &prefixbak,
              &suffixbak, &hangbak, &lastbak, &minbak);
   if (is_error()) goto parcleanup;
@@ -390,7 +398,7 @@ parcleanup:
   if (is_error()) {
     report_error(stderr);
     clear_error();
-    exit(EXIT_FAILURE);
+    exit(EXIT_SUCCESS);
   }
 
   exit(EXIT_SUCCESS);
