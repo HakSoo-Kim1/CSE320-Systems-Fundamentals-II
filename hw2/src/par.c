@@ -285,6 +285,7 @@ int original_main(int argc, const char * const *argv)
   const char * const whitechars = " \f\n\r\t\v";
 
   parinit = getenv("PARINIT");
+  debug("parinit string is : %s",parinit);
   if (parinit) {
     picopy = malloc((strlen(parinit) + 1) * sizeof (char));
     if (!picopy) {
@@ -293,19 +294,36 @@ int original_main(int argc, const char * const *argv)
     }
     strcpy(picopy,parinit);
     opt = strtok(picopy,whitechars);
-    while (opt) {
-      parseopt(opt, &widthbak, &prefixbak,
-               &suffixbak, &hangbak, &lastbak, &minbak);
-      if (is_error()) goto parcleanup;
-      opt = strtok(NULL,whitechars);
+    custom_argv = malloc( sizeof( char * ) );
+    if (!custom_argv){
+      strcpy(errmsg,outofmem);
+      goto parcleanup;
     }
+    int counter = 1;
+    while (opt) {
+      custom_argv = realloc(custom_argv,(counter + 1) * sizeof(char *));
+      ++counter;
+      custom_argv[counter - 2] = malloc(strlen(opt) + 1);
+      strcpy(custom_argv[counter - 2],opt);
+      opt = strtok(NULL, whitechars);
+    }
+    custom_argv[counter - 1] = NULL;
+    custom_parseopt(argc, (const char *const *)custom_argv, &widthbak, &prefixbak,
+             &suffixbak, &hangbak, &lastbak, &minbak);
+    if (is_error()) goto parcleanup;
+    debug("should not see this");
+    for ( char **p = custom_argv; *p; ++p ){
+      free(*p);
+    }
+    free(custom_argv);
     free(picopy);
+    custom_argv = NULL;
     picopy = NULL;
   }
 
   custom_parseopt(argc, argv, &widthbak, &prefixbak,
              &suffixbak, &hangbak, &lastbak, &minbak);
-    if (is_error()) goto parcleanup;
+  if (is_error()) goto parcleanup;
 
   debug("given width : %d",widthbak);
   debug("given hang : %d",hangbak);
@@ -358,14 +376,17 @@ int original_main(int argc, const char * const *argv)
   }
 
 parcleanup:
-
-  debug("1");
+  if (custom_argv){
+    for ( char **p = custom_argv; *p; ++p ){
+      debug("FREEING");
+      free(*p);
+    }
+    free(custom_argv);
+    debug("good");
+  }
   if (picopy) free(picopy);
-  debug("2");
   if (inlines) freelines(inlines);
-  debug("3");
   if (outlines) freelines(outlines);
-  debug("asdasdf");
   if (is_error()) {
     report_error(stderr);
     clear_error();
@@ -381,7 +402,6 @@ static void custom_parseopt(
 )
 {
   int index = 0;
-  // const char *saveopt = ;;
   int n, r = -1;
   int option = -1;
   struct option options[] = {
@@ -476,6 +496,6 @@ static void custom_parseopt(
     }
   }
   // set_error(NULL);
-  // *errmsg = '\0';
+  // errmsg = '\0';
   return;
 }
