@@ -367,6 +367,10 @@ int original_main(int argc, const char * const *argv)
     setdefaults((const char * const *) inlines,
                 &width, &prefix, &suffix, &hang, &last, &min);
     debug("BEFORE sREFORMAT");
+    if (width <= prefix + suffix){
+      set_error("width size is smaller than prefix + suffix\n");
+      goto parcleanup;
+    }
     outlines = reformat((const char * const *) inlines,
                         width, prefix, suffix, hang, last, min);
     debug("GOT here");
