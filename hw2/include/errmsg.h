@@ -41,4 +41,4 @@ int report_error(FILE *file);
 void clear_error();
 
 
-extern char * outofmem;  /* "Out of memory.\n" */
+// extern char * outofmem;  /* "Out of memory.\n" */

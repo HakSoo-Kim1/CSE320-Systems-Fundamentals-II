@@ -21,6 +21,8 @@
 #undef NULL
 #define NULL ((void *) 0)
 
+// char * outofmem = "Out of memory.\n";
+
 
 struct word {
   const char *chrs;       /* Pointer to the characters in the word */
@@ -45,8 +47,8 @@ static int choosebreaks(
 {
   struct word *w1, *w2;
   int linelen, shortest, newL, score, minlen, diff, sumsqdiff;
-  const char * const impossibility =
-    "Impossibility #%d has occurred. Please report it.\n";
+  // const char * const impossibility =
+  //   "Impossibility #%d has occurred. Please report it.\n";
 
 /* Determine maximum length of the shortest line: */
 
@@ -185,7 +187,7 @@ char **reformat(const char * const *inlines, int width,
     suffixes = malloc(numin * sizeof (const char *));
     if (!suffixes) {
       // strcpy(errmsg,outofmem);
-      set_error((char *)outofmem);
+      set_error("Out of memory.\n");
       goto rfcleanup;
     }
   }
@@ -228,7 +230,7 @@ char **reformat(const char * const *inlines, int width,
       w1 = malloc(sizeof (struct word));
       if (!w1) {
         // strcpy(errmsg,outofmem);
-        set_error((char *)outofmem);
+        set_error("Out of memory.\n");
         goto rfcleanup;
       }
       w1->next = NULL;
@@ -271,7 +273,7 @@ char **reformat(const char * const *inlines, int width,
     q1 = malloc((linelen + 1) * sizeof (char));
     if (!q1) {
       // strcpy(errmsg,outofmem);
-      set_error((char *)outofmem);
+      set_error("Out of memory.\n");
       goto rfcleanup;
     }
     additem(pbuf, &q1);

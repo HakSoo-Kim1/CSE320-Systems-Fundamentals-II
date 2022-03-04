@@ -14,8 +14,6 @@
 
 static char * errmsg = NULL;
 
-char * outofmem = "Out of memory.\n";
-
 /**
  * @brief  Set an error indication, with a specified error message.
  * @param msg Pointer to the error message.  The string passed by the caller

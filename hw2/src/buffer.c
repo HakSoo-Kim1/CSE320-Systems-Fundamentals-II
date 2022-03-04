@@ -24,6 +24,7 @@
 #undef NULL
 #define NULL ((void *) 0)
 
+char * outofmem = "Out of memory.\n";
 
 struct buffer {
   struct block *firstblk, /* The first block.                    */

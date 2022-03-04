@@ -32,6 +32,7 @@ const char * const progname = "par";
 const char * const version = "3.20";
 
 
+
 static int digtoint(char c)
 
 /* Returns the value represented by the digit c,   */
@@ -77,59 +78,59 @@ static int strtoudec(const char *s, int *pn)
 }
 
 
-static void parseopt(
-  const char *opt, int *pwidth, int *pprefix,
-  int *psuffix, int *phang, int *plast, int *pmin
-)
-/* Parses the single option in opt, setting *pwidth, *pprefix,     */
-/* *psuffix, *phang, *plast, or *pmin as appropriate. Uses errmsg. */
-{
-  const char *saveopt = opt;
-  char oc;
-  int n, r;
+// static void parseopt(
+//   const char *opt, int *pwidth, int *pprefix,
+//   int *psuffix, int *phang, int *plast, int *pmin
+// )
+// /* Parses the single option in opt, setting *pwidth, *pprefix,     */
+// /* *psuffix, *phang, *plast, or *pmin as appropriate. Uses errmsg. */
+// {
+//   const char *saveopt = opt;
+//   char oc;
+//   int n, r;
 
-  if (*opt == '-') ++opt;
+//   if (*opt == '-') ++opt;
 
-  if (!strcmp(opt, "version")) {
-    // sprintf(errmsg, "%s %s\n", progname, version);
-    set_error("par 3.20\n");
-    return;
-  }
+//   if (!strcmp(opt, "version")) {
+//     // sprintf(errmsg, "%s %s\n", progname, version);
+//     set_error("par 3.20\n");
+//     return;
+//   }
 
-  oc = *opt;
+//   oc = *opt;
 
-  if (isdigit(oc)) {
-    if (!strtoudec(opt, &n)) goto badopt;
-    if (n <= 8) *pprefix = n;
-    else *pwidth = n;
-  }
-  else {
-    if (!oc) goto badopt;
-    n = 1;
-    r = strtoudec(opt + 1, &n);
-    if (opt[1] && !r) goto badopt;
+//   if (isdigit(oc)) {
+//     if (!strtoudec(opt, &n)) goto badopt;
+//     if (n <= 8) *pprefix = n;
+//     else *pwidth = n;
+//   }
+//   else {
+//     if (!oc) goto badopt;
+//     n = 1;
+//     r = strtoudec(opt + 1, &n);
+//     if (opt[1] && !r) goto badopt;
 
-    if (oc == 'w' || oc == 'p' || oc == 's') {
-      if (!r) goto badopt;
-      if      (oc == 'w') *pwidth  = n;
-      else if (oc == 'p') *pprefix = n;
-      else                *psuffix = n;
-    }
-    else if (oc == 'h') *phang = n;
-    else if (n <= 1) {
-      if      (oc == 'l') *plast = n;
-      else if (oc == 'm') *pmin = n;
-    }
-    else goto badopt;
-  }
+//     if (oc == 'w' || oc == 'p' || oc == 's') {
+//       if (!r) goto badopt;
+//       if      (oc == 'w') *pwidth  = n;
+//       else if (oc == 'p') *pprefix = n;
+//       else                *psuffix = n;
+//     }
+//     else if (oc == 'h') *phang = n;
+//     else if (n <= 1) {
+//       if      (oc == 'l') *plast = n;
+//       else if (oc == 'm') *pmin = n;
+//     }
+//     else goto badopt;
+//   }
 
-  // *errmsg = '\0';
-  return;
+//   // *errmsg = '\0';
+//   return;
 
-badopt:
-  set_error("Bad Option");
-  // sprintf(errmsg, "Bad option: %.149s\n", saveopt);
-}
+// badopt:
+//   set_error("Bad Option");
+//   // sprintf(errmsg, "Bad option: %.149s\n", saveopt);
+// }
 
 
 static char **readlines(void)
@@ -153,6 +154,7 @@ static char **readlines(void)
   debug("inside of readlines");
   for (blank = 1;  ; ) {
     c = getchar();
+    // debug(" character read is %d",c);
     if (c == EOF) break;
     if (c == '\n') {
       if (blank) {
@@ -165,8 +167,6 @@ static char **readlines(void)
       if (is_error()) goto rlcleanup;
       additem(pbuf, &ln);
       if (is_error()) goto rlcleanup;
-      // ln = NULL;
-
       clearbuffer(cbuf);
       blank = 1;
     }
@@ -279,7 +279,7 @@ int original_main(int argc, const char * const *argv)
   int width, widthbak = -1, prefix, prefixbak = -1, suffix, suffixbak = -1,
       hang, hangbak = -1, last, lastbak = -1, min, minbak = -1, c;
   char *parinit = NULL, *picopy = NULL, *opt = NULL, **inlines = NULL, **outlines = NULL,
-       **line = NULL; 
+       **line = NULL;
   char ** custom_argv = NULL;
 
   const char * const whitechars = " \f\n\r\t\v";
@@ -289,14 +289,14 @@ int original_main(int argc, const char * const *argv)
   if (parinit) {
     picopy = malloc((strlen(parinit) + 1) * sizeof (char));
     if (!picopy) {
-      set_error((char *)outofmem);
+      set_error("Out of memory.\n");
       goto parcleanup;
     }
     strcpy(picopy,parinit);
     opt = strtok(picopy,whitechars);
     custom_argv = malloc( sizeof( char * ) );
     if (!custom_argv){
-      set_error((char*)outofmem);
+      set_error("Out of memory.\n");
       // strcpy(errmsg,outofmem);
       goto parcleanup;
     }
@@ -477,6 +477,7 @@ static void custom_parseopt(
 
       case 'm':
       debug("\t min given ");
+      debug("%s",optarg);
       r = strtoudec(optarg, &n);
       if (!r || n > 1){ set_error("Bad min\n"); return;}
       *pmin  = n;
