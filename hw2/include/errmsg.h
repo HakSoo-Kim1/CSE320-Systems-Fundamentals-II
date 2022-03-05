@@ -11,6 +11,7 @@
 #include <stdio.h>
 
 // static char *errmsg;
+
 /**
  * @brief  Set an error indication, with a specified error message.
  * @param msg Pointer to the error message.  The string passed by the caller
