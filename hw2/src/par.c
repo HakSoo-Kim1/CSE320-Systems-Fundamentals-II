@@ -268,13 +268,13 @@ int original_main(int argc, const char * const *argv)
     custom_argv = NULL;
     picopy = NULL;
   }
-  // debug("\t PARINIT result : ");
-  // debug("given width : %d",widthbak);
-  // debug("given hang : %d",hangbak);
-  // debug("given last : %d",lastbak);
-  // debug("given min : %d",minbak);
-  // debug("given prefix : %d",prefixbak);
-  // debug("given suffix : %d",suffixbak);
+  debug("\t PARINIT result : ");
+  debug("given width : %d",widthbak);
+  debug("given hang : %d",hangbak);
+  debug("given last : %d",lastbak);
+  debug("given min : %d",minbak);
+  debug("given prefix : %d",prefixbak);
+  debug("given suffix : %d",suffixbak);
 
   custom_parseopt(argc, argv, &widthbak, &prefixbak,
              &suffixbak, &hangbak, &lastbak, &minbak);
@@ -415,17 +415,24 @@ static void custom_parseopt(
       case 'h':
       debug("\t hang given ");
       debug("%s",optarg);
-      if (!isdigit(*optarg)){
-        debug("following value is not number");
-        *phang  = 1;
-        optind --;
-      }
-      else{
-        r = strtoudec(optarg, &n);
-        if (!r || n > 1){ set_error("Bad last\n"); return;}
-        *phang  = n;
-      }
-      break;
+        if (!isdigit(*optarg)){
+          debug("following value is not number");
+          *phang  = 1;
+          if ((strcmp(optarg,argv[optind - 1]) == 0)){
+            debug("here");
+            optind --;
+          }
+          else{
+            r = strtoudec(optarg, &n);
+            if (!r || n > 1){ set_error("Bad hang\n"); return;}
+            *phang  = n;
+          }
+        }
+        else{
+          r = strtoudec(optarg, &n);
+          if (!r || n > 1){ set_error("Bad hang\n"); return;}
+          *phang  = n;
+        }      break;
 
       case 'l':
         debug("\t last given ");
@@ -433,7 +440,15 @@ static void custom_parseopt(
         if (!isdigit(*optarg)){
           debug("following value is not number");
           *plast  = 1;
-          optind --;
+          if ((strcmp(optarg,argv[optind - 1]) == 0)){
+            debug("here");
+            optind --;
+          }
+          else{
+            r = strtoudec(optarg, &n);
+            if (!r || n > 1){ set_error("Bad last\n"); return;}
+            *plast  = n;
+          }
         }
         else{
           r = strtoudec(optarg, &n);
@@ -445,10 +460,19 @@ static void custom_parseopt(
       case 'm':
         debug("\t min given ");
         debug("%s",optarg);
+        debug("optind %d",optind);
         if (!isdigit(*optarg)){
           debug("following value is not number");
           *pmin  = 1;
-          optind --;
+          if ((strcmp(optarg,argv[optind - 1]) == 0)){
+            debug("here");
+            optind --;
+          }
+          else{
+            r = strtoudec(optarg, &n);
+            if (!r || n > 1){ set_error("Bad min\n"); return;}
+            *pmin  = n;
+          }
         }
         else{
           r = strtoudec(optarg, &n);
