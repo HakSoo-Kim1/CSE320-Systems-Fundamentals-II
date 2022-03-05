@@ -90,7 +90,7 @@ static char **readlines(void)
   debug("HERE");
 
   cbuf = newbuffer(sizeof (char));
-    debug("here");
+  debug("here");
 
   if (is_error()) goto rlcleanup;
   pbuf = newbuffer(sizeof (char *));
@@ -210,7 +210,6 @@ static void freelines(char **lines)
 /* Frees the strings pointed to in the NULL-terminated array lines, then */
 /* frees the array. Does not use errmsg because it always succeeds.      */
 {
-
   for (char **line = lines; *line;  ++line){
     free(*line);
   }
@@ -347,7 +346,7 @@ parcleanup:
   if (is_error()) {
     report_error(stderr);
     if (versionFlag){
-      debug("verstion");
+      debug("version");
       clear_error();
       exit(EXIT_SUCCESS);
     }
@@ -424,15 +423,16 @@ static void custom_parseopt(
           }
           else{
             r = strtoudec(optarg, &n);
-            if (!r || n > 1){ set_error("Bad hang\n"); return;}
+            if (!r){ set_error("Bad hang\n"); return;}
             *phang  = n;
           }
         }
         else{
           r = strtoudec(optarg, &n);
-          if (!r || n > 1){ set_error("Bad hang\n"); return;}
+          if (!r){ set_error("Bad hang\n"); return;}
           *phang  = n;
-        }      break;
+        }      
+        break;
 
       case 'l':
         debug("\t last given ");
@@ -511,7 +511,7 @@ static void custom_parseopt(
           *pmin  = 1;
         }
         else{
-          set_error("Wrong argument given\n");
+          set_error("Wrong argument given (possibly missing following value)\n");
           return;
         }
       break;
@@ -519,7 +519,7 @@ static void custom_parseopt(
       case '?':
         debug("wrong %d",optopt);
         debug("opt is : %d",option);
-        set_error("Wrong argument given\n");
+        set_error("unknown argument given\n");
         return;
     }
   }
@@ -530,7 +530,7 @@ static void custom_parseopt(
     while (optind < argc){
       debug("Non-option args: %s ",argv[optind]);
       r = strtoudec(argv[optind], &n);
-      if (!r){ set_error("Bad argument given\n"); return;}
+      if (!r){ set_error("Bad unknown argument given\n"); return;}
       *pwidth  = n;
       optind++;
     }

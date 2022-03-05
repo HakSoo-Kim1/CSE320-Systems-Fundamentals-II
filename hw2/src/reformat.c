@@ -21,9 +21,6 @@
 #undef NULL
 #define NULL ((void *) 0)
 
-// char * outofmem = "Out of memory.\n";
-
-
 struct word {
   const char *chrs;       /* Pointer to the characters in the word */
                           /* (NOT terminated by '\0').             */
@@ -75,7 +72,7 @@ static int choosebreaks(
       }
     }
     if (w1->score < 0) {
-      set_error(    "Impossibility #1 has occurred. Please report it.\n");
+      set_error("Impossibility #1 has occurred. Please report it.\n");
       // sprintf(errmsg,impossibility,1);
       return 0;
     }
@@ -115,7 +112,7 @@ static int choosebreaks(
 
     newL = head->next ? head->next->score : 0;
     if (newL > L) {
-      set_error(    "Impossibility #2 has occurred. Please report it.\n");
+      set_error("Impossibility #2 has occurred. Please report it.\n");
       // sprintf(errmsg,impossibility,2);
       return 0;
     }
@@ -150,7 +147,7 @@ static int choosebreaks(
   }
 
   if (head->next && head->next->score < 0) {
-      set_error(    "Impossibility #3 has occurred. Please report it.\n");
+      set_error("Impossibility #3 has occurred. Please report it.\n");
     // sprintf(errmsg,impossibility,3);
     return 0;
   }
@@ -191,7 +188,7 @@ char **reformat(const char * const *inlines, int width,
       goto rfcleanup;
     }
   }
-  debug("1");
+
 /* Set the pointers to the suffixes, and create the words: */
 
   affix = prefix + suffix;
@@ -200,7 +197,6 @@ char **reformat(const char * const *inlines, int width,
   for (line = inlines, suf = suffixes;  *line;  ++line, ++suf) {
     for (end = *line;  *end;  ++end);
     if (end - *line < affix) {
-      debug("2");
       char *buf; 
       size_t len;
       FILE *stream = open_memstream(&buf,&len);
@@ -208,16 +204,11 @@ char **reformat(const char * const *inlines, int width,
 
       fprintf(stream,"Line %ld shorter than <prefix> + <suffix> = %d + %d = %d\n",
               line - inlines + 1, prefix, suffix, affix);
-      debug("here");
-      debug("%s",buf);
       set_error(buf);
-      debug("asd");
       fclose(stream);
-      debug("123");
       free(buf);
       goto rfcleanup;
     }
-    debug("3");
     end -= suffix;
     *suf = end;
     p1 = *line + prefix;
@@ -255,7 +246,6 @@ char **reformat(const char * const *inlines, int width,
   }
 
 /* Choose line breaks according to policy in "par.doc": */
-  debug("4");
   newL = choosebreaks(head,tail,L,last,min);
   if (is_error()) goto rfcleanup;
 
@@ -263,7 +253,6 @@ char **reformat(const char * const *inlines, int width,
 
   pbuf = newbuffer(sizeof (char *));
   if (is_error()) goto rfcleanup;
-  debug("4");
   numout = 0;
   w1 = head->next;
   while (numout < hang || w1) {
@@ -301,13 +290,11 @@ char **reformat(const char * const *inlines, int width,
     *q2 = '\0';
     if (w1) w1 = w1->nextline;
   }
-  debug("5");
   q1 = NULL;
   additem(pbuf, &q1);
   if (is_error()) goto rfcleanup;
 
   outlines = copyitems(pbuf);
-  debug("6");
 rfcleanup:
 
   if (suffixes) free(suffixes);
@@ -316,7 +303,6 @@ rfcleanup:
     tail = tail->prev;
     free(tail->next);
   }
-  debug("7");
   if (pbuf) {
     if (!outlines)
       for (;;) {
@@ -324,9 +310,7 @@ rfcleanup:
         if (!outlines) break;
         free(*outlines);
       }
-      debug("8");
     freebuffer(pbuf);
   }
-  debug("9");
   return outlines;
 }
