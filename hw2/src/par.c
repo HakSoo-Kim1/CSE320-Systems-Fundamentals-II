@@ -77,62 +77,6 @@ static int strtoudec(const char *s, int *pn)
   return 1;
 }
 
-
-// static void parseopt(
-//   const char *opt, int *pwidth, int *pprefix,
-//   int *psuffix, int *phang, int *plast, int *pmin
-// )
-// /* Parses the single option in opt, setting *pwidth, *pprefix,     */
-// /* *psuffix, *phang, *plast, or *pmin as appropriate. Uses errmsg. */
-// {
-//   const char *saveopt = opt;
-//   char oc;
-//   int n, r;
-
-//   if (*opt == '-') ++opt;
-
-//   if (!strcmp(opt, "version")) {
-//     // sprintf(errmsg, "%s %s\n", progname, version);
-//     set_error("par 3.20\n");
-//     return;
-//   }
-
-//   oc = *opt;
-
-//   if (isdigit(oc)) {
-//     if (!strtoudec(opt, &n)) goto badopt;
-//     if (n <= 8) *pprefix = n;
-//     else *pwidth = n;
-//   }
-//   else {
-//     if (!oc) goto badopt;
-//     n = 1;
-//     r = strtoudec(opt + 1, &n);
-//     if (opt[1] && !r) goto badopt;
-
-//     if (oc == 'w' || oc == 'p' || oc == 's') {
-//       if (!r) goto badopt;
-//       if      (oc == 'w') *pwidth  = n;
-//       else if (oc == 'p') *pprefix = n;
-//       else                *psuffix = n;
-//     }
-//     else if (oc == 'h') *phang = n;
-//     else if (n <= 1) {
-//       if      (oc == 'l') *plast = n;
-//       else if (oc == 'm') *pmin = n;
-//     }
-//     else goto badopt;
-//   }
-
-//   // *errmsg = '\0';
-//   return;
-
-// badopt:
-//   set_error("Bad Option");
-//   // sprintf(errmsg, "Bad option: %.149s\n", saveopt);
-// }
-
-
 static char **readlines(void)
 
 /* Reads lines from stdin until EOF, or until a blank line is encountered, */
@@ -189,7 +133,7 @@ static char **readlines(void)
   additem(pbuf, &nullline);
   if (is_error()) goto rlcleanup;
   lines = copyitems(pbuf);
-  debug("lines in readlines is : %s",*lines);
+  // debug("lines in readlines is : %s",*lines);
 rlcleanup:
 
   if (cbuf) freebuffer(cbuf);
@@ -294,13 +238,14 @@ int original_main(int argc, const char * const *argv)
     }
     strcpy(picopy,parinit);
     opt = strtok(picopy,whitechars);
-    custom_argv = malloc( sizeof( char * ) );
+    custom_argv = malloc( 2 * sizeof( char * ) );
     if (!custom_argv){
       set_error("Out of memory.\n");
       // strcpy(errmsg,outofmem);
       goto parcleanup;
     }
-    int counter = 1;
+    custom_argv[0] = "bin/par";
+    int counter = 2;
     while (opt) {
       custom_argv = realloc(custom_argv,(counter + 1) * sizeof(char *));
       ++counter;
@@ -312,10 +257,10 @@ int original_main(int argc, const char * const *argv)
     for ( char **p = custom_argv; *p; ++p ){
       debug("%s",*p);
     }
-    custom_parseopt(argc, (const char *const *)custom_argv, &widthbak, &prefixbak,
+    custom_parseopt(counter - 1, (const char *const *)custom_argv, &widthbak, &prefixbak,
              &suffixbak, &hangbak, &lastbak, &minbak);
     if (is_error()) goto parcleanup;
-    for ( char **p = custom_argv; *p; ++p ){
+    for ( char **p = custom_argv + 1; *p; ++p ){
       free(*p);
     }
     free(custom_argv);
@@ -323,13 +268,13 @@ int original_main(int argc, const char * const *argv)
     custom_argv = NULL;
     picopy = NULL;
   }
-  debug("\t PARINIT result : ");
-  debug("given width : %d",widthbak);
-  debug("given hang : %d",hangbak);
-  debug("given last : %d",lastbak);
-  debug("given min : %d",minbak);
-  debug("given prefix : %d",prefixbak);
-  debug("given suffix : %d",suffixbak);
+  // debug("\t PARINIT result : ");
+  // debug("given width : %d",widthbak);
+  // debug("given hang : %d",hangbak);
+  // debug("given last : %d",lastbak);
+  // debug("given min : %d",minbak);
+  // debug("given prefix : %d",prefixbak);
+  // debug("given suffix : %d",suffixbak);
 
   custom_parseopt(argc, argv, &widthbak, &prefixbak,
              &suffixbak, &hangbak, &lastbak, &minbak);
@@ -389,7 +334,7 @@ int original_main(int argc, const char * const *argv)
 
 parcleanup:
   if (custom_argv){
-    for ( char **p = custom_argv; *p; ++p ){
+    for ( char **p = custom_argv + 1; *p; ++p ){
       debug("FREEING");
       free(*p);
     }
@@ -415,13 +360,15 @@ parcleanup:
 }
 
 static void custom_parseopt(  
-  int argc, const char * const *argv, int *pwidth, int *pprefix,
+  int argc,  const char *const *argv, int *pwidth, int *pprefix,
   int *psuffix, int *phang, int *plast, int *pmin
 )
 {
+
   int index = 0;
   int n, r = -1;
   int option = -1;
+  optind = 1;
   struct option options[] = {
     {"version", no_argument ,       NULL, 'v' },
     {"width",   required_argument,  NULL, 'w' },
@@ -435,7 +382,7 @@ static void custom_parseopt(
     {NULL,0,NULL, 0}
   };
 
-  while ((option = getopt_long(argc, (char * const*)argv, "-:w:p:s:h:l:m:", options, &index)) != -1){
+  while ((option = getopt_long(argc, (char * const*)argv, ":w:p:s:h:l:m:", options, &index)) != -1){
     switch(option){
       case 'v':
       debug("\t version given ");
@@ -467,26 +414,48 @@ static void custom_parseopt(
 
       case 'h':
       debug("\t hang given ");
-      r = strtoudec(optarg, &n);
-      if (!r){ set_error("Bad hang\n"); return;}
-      *phang  = n;
+      debug("%s",optarg);
+      if (!isdigit(*optarg)){
+        debug("following value is not number");
+        *phang  = 1;
+        optind --;
+      }
+      else{
+        r = strtoudec(optarg, &n);
+        if (!r || n > 1){ set_error("Bad last\n"); return;}
+        *phang  = n;
+      }
       break;
 
       case 'l':
-      debug("\t last given ");
-      r = strtoudec(optarg, &n);
-      if (!r || n > 1){ set_error("Bad last\n"); return;}
-      *plast  = n;
+        debug("\t last given ");
+        debug("%s",optarg);
+        if (!isdigit(*optarg)){
+          debug("following value is not number");
+          *plast  = 1;
+          optind --;
+        }
+        else{
+          r = strtoudec(optarg, &n);
+          if (!r || n > 1){ set_error("Bad last\n"); return;}
+          *plast  = n;
+        }
       break;
 
       case 'm':
-      debug("\t min given ");
-      debug("%s",optarg);
-      r = strtoudec(optarg, &n);
-      if (!r || n > 1){ set_error("Bad min\n"); return;}
-      *pmin  = n;
-      break;
-
+        debug("\t min given ");
+        debug("%s",optarg);
+        if (!isdigit(*optarg)){
+          debug("following value is not number");
+          *pmin  = 1;
+          optind --;
+        }
+        else{
+          r = strtoudec(optarg, &n);
+          if (!r || n > 1){ set_error("Bad min\n"); return;}
+          *pmin  = n;
+        }
+        break;
       case 0:
         if (strcmp(options[index].name, "last") == 0){
           debug("\t last given ");
@@ -507,6 +476,7 @@ static void custom_parseopt(
       break;
 
       case ':':
+        debug("hello");
         if(optopt == 'h'){
           *phang = 1;
         }
@@ -521,16 +491,27 @@ static void custom_parseopt(
           return;
         }
       break;
-
-      case 1:
+      // case 1:
       case '?':
         debug("wrong %d",optopt);
         debug("opt is : %d",option);
         set_error("Wrong argument given\n");
         return;
-
     }
   }
+
+  if (optind < argc) 
+  {
+    int r,n;
+    while (optind < argc){
+      debug("Non-option args: %s ",argv[optind]);
+      r = strtoudec(argv[optind], &n);
+      if (!r){ set_error("Bad argument given\n"); return;}
+      *pwidth  = n;
+      optind++;
+    }
+  }
+  // exit(EXIT_SUCCESS);
   // set_error(NULL);
   // errmsg = '\0';
   return;
