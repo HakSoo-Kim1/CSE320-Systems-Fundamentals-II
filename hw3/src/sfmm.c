@@ -35,6 +35,8 @@ void *sf_malloc(sf_size_t size) {
     if (sf_mem_start() == sf_mem_end()){
         initHeap();
     }
+
+    sf_show_heap();
     sf_size_t requiredBlkSize = ((size + 8) % 16) ? ((((size + 8)/16) + 1) * 16 ) : (size + 8) ; 
     if (requiredBlkSize < MIN_BLOCK_SIZE) requiredBlkSize = MIN_BLOCK_SIZE;
     debug("size required is : %d",requiredBlkSize);
@@ -54,6 +56,9 @@ void *sf_malloc(sf_size_t size) {
             }
         }
     }
+    debug("hello");
+    debug("%d %d",requiredBlkSize,size);
+    debug("%ld ",freeblk -> header);
     if (requiredBlkSize < ((NUM_QUICK_LISTS * ALIGN_SIZE) + MIN_BLOCK_SIZE)){         
         freeblk = allocate(freeblk, requiredBlkSize, size);
     }
@@ -66,10 +71,13 @@ void *sf_malloc(sf_size_t size) {
 
 void sf_free(void *pp) {
     sf_header *freeingBlkHeader = (sf_header *)(pp - 8);
-    sf_size_t freeingBlkSize = *freeingBlkHeader & BLK_SIZE_MASKING_BIT;
+    sf_size_t freeingBlkSize = (*freeingBlkHeader ^ MAGIC) & BLK_SIZE_MASKING_BIT;
      *freeingBlkHeader = (*freeingBlkHeader << 32) >> 32;
     if (freeingBlkSize >= ((NUM_QUICK_LISTS * ALIGN_SIZE) + MIN_BLOCK_SIZE)){ 
+        *freeingBlkHeader ^= MAGIC;
         *freeingBlkHeader = *freeingBlkHeader & ~THIS_BLOCK_ALLOCATED; 
+        *freeingBlkHeader ^= MAGIC;
+
     }
 
     sf_footer* freeingBlkFooter = (sf_footer*)((void *)freeingBlkHeader + freeingBlkSize - 8);
@@ -77,9 +85,11 @@ void sf_free(void *pp) {
     sf_header* nextBlkHeader = (sf_header*)((void *)freeingBlkFooter + 8);
 
     if (freeingBlkSize >= ((NUM_QUICK_LISTS * ALIGN_SIZE) + MIN_BLOCK_SIZE)){ 
+        *nextBlkHeader ^= MAGIC;
         *nextBlkHeader = *nextBlkHeader & ~PREV_BLOCK_ALLOCATED;
+        *nextBlkHeader ^= MAGIC;
     }
-    sf_size_t nextBlkSize = *nextBlkHeader & BLK_SIZE_MASKING_BIT;
+    sf_size_t nextBlkSize = (*nextBlkHeader ^ MAGIC) & BLK_SIZE_MASKING_BIT;
     sf_header *nextBlkFooter =  (sf_header*)((void *)nextBlkHeader + nextBlkSize - 8);
     *nextBlkFooter = *nextBlkHeader;
 
@@ -101,7 +111,7 @@ void *sf_realloc(void *pp, sf_size_t rsize) {
         return NULL;
     }
     sf_header * blkHeader = (sf_header *)(pp - 8);
-    uint64_t size = *blkHeader & BLK_SIZE_MASKING_BIT;
+    uint64_t size = (*blkHeader ^ MAGIC) & BLK_SIZE_MASKING_BIT;
     sf_size_t requiredBlkSize = ((rsize + 8) % 16) ? ((((rsize + 8)/16) + 1) * 16 ) : (rsize + 8) ; 
     if (requiredBlkSize < MIN_BLOCK_SIZE) requiredBlkSize = MIN_BLOCK_SIZE;
     debug("size required in realloc is : %d",requiredBlkSize);
@@ -148,14 +158,22 @@ void initHeap(){
     *prologue = 0;
     *prologue = *prologue | PREV_BLOCK_ALLOCATED | THIS_BLOCK_ALLOCATED | 32;
 
+    *prologue ^=  MAGIC;    ////
+
     sf_block *freeblk = (sf_block*) (heapStart + 32);
     freeblk -> prev_footer = *prologue;
     freeblk -> header = 0;
     freeblk -> header = (freeblk -> header) | (PAGE_SZ - (8 * 6)) | PREV_BLOCK_ALLOCATED;
+
+    freeblk -> header ^=  MAGIC;    ////
+
     addFreeblkInFreelist(freeblk);
 
     sf_footer *epilogue = (sf_footer*)(heapEnd - 8);
-    *epilogue  = 0 | THIS_BLOCK_ALLOCATED;
+    *epilogue  = THIS_BLOCK_ALLOCATED;                                                  /////
+
+    *epilogue ^=  MAGIC;    ////
+
 
     sf_footer *epiloguePrefooter = (sf_footer*)(heapEnd - 16);
     *epiloguePrefooter = freeblk -> header;
@@ -163,7 +181,7 @@ void initHeap(){
 }
 
 void addFreeblkInFreelist(sf_block* freeblk){
-    uint64_t size = freeblk -> header & BLK_SIZE_MASKING_BIT;
+    uint64_t size = ((freeblk -> header) ^ MAGIC) & BLK_SIZE_MASKING_BIT;
     int index = freelistIndexFinder(size);
     freeblk -> body.links.next = sf_free_list_heads[index].body.links.next;
     freeblk -> body.links.prev = &sf_free_list_heads[index];
@@ -177,7 +195,7 @@ sf_block * searchFreelist(sf_size_t size){
         sf_block* head = &sf_free_list_heads[i];
         sf_block* finder = sf_free_list_heads[i].body.links.next;
         while(finder != head){
-            if ((finder -> header & BLK_SIZE_MASKING_BIT) >= size){
+            if ((((finder -> header) ^ MAGIC) & BLK_SIZE_MASKING_BIT) >= size){
                 finder -> body.links.prev -> body.links.next = finder -> body.links.next;
                 finder -> body.links.next -> body.links.prev = finder -> body.links.prev;
                 return finder;
@@ -210,13 +228,21 @@ void growHeap(){
         return ;
     }
     sf_footer *previousEpilogue = (sf_footer*)(heapEnd - 8);
+
+    *previousEpilogue ^=  MAGIC;    ////
+
     *previousEpilogue = *previousEpilogue | PAGE_SZ;
     *previousEpilogue = *previousEpilogue & ~THIS_BLOCK_ALLOCATED;
+
+    *previousEpilogue ^=  MAGIC;    ////
+
     heapEnd = sf_mem_end();
 
     sf_footer *newEpilogue = (sf_footer*)(heapEnd - 8);
-    *newEpilogue  = 0 | THIS_BLOCK_ALLOCATED;
+    *newEpilogue  = THIS_BLOCK_ALLOCATED;
 
+    *newEpilogue ^=  MAGIC;    ////
+    
     sf_footer *epiloguePrefooter = (sf_footer*)(heapEnd - 16);
     *epiloguePrefooter = *previousEpilogue;
 
@@ -229,20 +255,24 @@ sf_block* coalescing(sf_block *freeblock){
     sf_block *returnBlk = NULL;
     sf_block *midBlk = freeblock;
 
-    uint64_t midBlkSize = midBlk -> header & BLK_SIZE_MASKING_BIT;
+    uint64_t midBlkSize = ((midBlk -> header) ^ MAGIC) & BLK_SIZE_MASKING_BIT;      //
     // int isMidAllocated = ((midBlk -> header) & THIS_BLOCK_ALLOCATED) >> 2;
 
-    uint64_t prevBlkSize = midBlk -> prev_footer & BLK_SIZE_MASKING_BIT;
+    uint64_t prevBlkSize = ((midBlk -> prev_footer) ^ MAGIC) & BLK_SIZE_MASKING_BIT;      //
     sf_block *prevBlk = (sf_block *)((void *)midBlk - prevBlkSize);
-    int isPrevAllocated = ((prevBlk -> header) & THIS_BLOCK_ALLOCATED) >> 2;
+    int isPrevAllocated = (((prevBlk -> header) ^ MAGIC) & THIS_BLOCK_ALLOCATED) >> 2;      //
 
     sf_block *nextBlk = (sf_block *)((void *)midBlk + midBlkSize);
-    uint64_t nextBlkSize = nextBlk -> header & BLK_SIZE_MASKING_BIT;
-    int isNextAllocated = ((nextBlk -> header) & THIS_BLOCK_ALLOCATED) >> 2;
+    uint64_t nextBlkSize = ((nextBlk -> header) ^ MAGIC) & BLK_SIZE_MASKING_BIT;      //
+    int isNextAllocated = (((nextBlk -> header) ^ MAGIC) & THIS_BLOCK_ALLOCATED) >> 2;      //
 
+    debug("isPrevAllocated %d isNextAllocated %d",isPrevAllocated,isNextAllocated);
     if (!isPrevAllocated && !isNextAllocated){
         debug("coalescing 1");
-        prevBlk += midBlkSize + nextBlkSize;
+        prevBlk -> header ^= MAGIC;  //
+        prevBlk -> header = prevBlk -> header + midBlkSize + nextBlkSize;
+        prevBlk -> header ^= MAGIC;  //
+
         sf_footer * nextBlkFooter = ((void*)prevBlk + prevBlkSize + midBlkSize +  nextBlkSize);
         *nextBlkFooter = prevBlk -> header;
         nextBlk -> body.links.prev -> body.links.next = nextBlk -> body.links.next;
@@ -253,7 +283,9 @@ sf_block* coalescing(sf_block *freeblock){
     }
     else if (!isPrevAllocated && isNextAllocated){
         debug("coalescing 2");
-        prevBlk -> header += midBlkSize;
+        prevBlk -> header ^= MAGIC;  //
+        prevBlk -> header = prevBlk -> header + midBlkSize;
+        prevBlk -> header ^= MAGIC;  //
         nextBlk -> prev_footer = prevBlk -> header;
         prevBlk -> body.links.prev -> body.links.next = prevBlk -> body.links.next;
         prevBlk -> body.links.next -> body.links.prev = prevBlk -> body.links.prev;
@@ -261,12 +293,16 @@ sf_block* coalescing(sf_block *freeblock){
     }
     else if (isPrevAllocated && !isNextAllocated){
         debug("coalescing 3");
+        midBlk -> header ^= MAGIC;  //
         midBlk -> header += nextBlkSize;
+        midBlk -> header ^= MAGIC;  //
+
         sf_footer * nextBlkFooter = (sf_footer *)((void*)nextBlk + nextBlkSize);
         *nextBlkFooter = midBlk -> header;
         nextBlk -> body.links.prev -> body.links.next = nextBlk -> body.links.next;
         nextBlk -> body.links.next -> body.links.prev = nextBlk -> body.links.prev;
         returnBlk = midBlk;
+        debug("hekko");
     }
     else{
         debug("coalescing 4");
@@ -277,25 +313,41 @@ sf_block* coalescing(sf_block *freeblock){
 
 sf_block *allocate(sf_block * freeblk, sf_size_t requiredSize, sf_size_t payloadSize){
     uint64_t payloadSize64 = ((uint64_t)payloadSize) << 32;
-    uint64_t freeBlkSize = freeblk -> header & BLK_SIZE_MASKING_BIT;
+    uint64_t freeBlkSize = ((freeblk -> header) ^ MAGIC) & BLK_SIZE_MASKING_BIT;
+            freeblk -> header ^= MAGIC;
     freeblk -> header = ((freeblk -> header) << 32) >> 32;
+                freeblk -> header ^= MAGIC;
+
     if (freeBlkSize > requiredSize){
         if ((freeBlkSize - requiredSize) < MIN_BLOCK_SIZE){
+            freeblk -> header ^= MAGIC;
             freeblk -> header = freeblk->header | payloadSize64| THIS_BLOCK_ALLOCATED;
+            freeblk -> header ^= MAGIC;
+
             sf_block *nextBlk = (sf_block*) ((void*) freeblk + freeBlkSize);
+            nextBlk -> header ^= MAGIC;
             nextBlk -> header |= PREV_BLOCK_ALLOCATED;
+            nextBlk -> header ^= MAGIC;
+
             
-            sf_footer* nextBlkFooter = (sf_footer *)((void *)nextBlk + (nextBlk -> header & BLK_SIZE_MASKING_BIT));
+            sf_footer* nextBlkFooter = (sf_footer *)((void *)nextBlk + (((nextBlk -> header) ^ MAGIC) & BLK_SIZE_MASKING_BIT));
             *nextBlkFooter = nextBlk -> header;
         }
         else{
+                        debug("freeblk -> header is : %ld",freeblk -> header);
+                        debug("freeblk -> header is : %ld",(freeblk -> header)^MAGIC);
+
             sf_size_t remainingSize = freeBlkSize - requiredSize;
+            freeblk -> header ^= MAGIC;
             freeblk -> header = freeblk->header | payloadSize64 | THIS_BLOCK_ALLOCATED;
             freeblk -> header -= remainingSize;
+            freeblk -> header ^= MAGIC;
+            
             sf_block *remainingBlk = (sf_block*)((void*)freeblk + requiredSize);
             remainingBlk -> prev_footer = freeblk -> header;
             remainingBlk -> header = 0;
             remainingBlk -> header = remainingBlk -> header | PREV_BLOCK_ALLOCATED | remainingSize;
+            remainingBlk -> header ^= MAGIC;
 
             sf_block *nextBlk = (sf_block*) ((void*) remainingBlk + remainingSize);
             nextBlk -> prev_footer = remainingBlk -> header;
@@ -305,11 +357,16 @@ sf_block *allocate(sf_block * freeblk, sf_size_t requiredSize, sf_size_t payload
         }
     }
     else{
+        freeblk -> header ^= MAGIC;
         freeblk -> header = freeblk->header | payloadSize64 | THIS_BLOCK_ALLOCATED;
-        sf_block *nextBlk = (sf_block*) ((void*) freeblk + freeBlkSize);
-        nextBlk -> header |= PREV_BLOCK_ALLOCATED;
+        freeblk -> header ^= MAGIC;
 
-        sf_size_t nextBlkSize = nextBlk -> header & BLK_SIZE_MASKING_BIT;
+        sf_block *nextBlk = (sf_block*) ((void*) freeblk + freeBlkSize);
+        nextBlk -> header ^= MAGIC;
+        nextBlk -> header |= PREV_BLOCK_ALLOCATED;
+        nextBlk -> header ^= MAGIC;
+
+        sf_size_t nextBlkSize = ((nextBlk -> header) ^ MAGIC) & BLK_SIZE_MASKING_BIT;
         sf_footer *nextBlkFooter =  (sf_footer*)((void *)nextBlk + nextBlkSize);
         *nextBlkFooter = nextBlk -> header;
 
@@ -326,7 +383,10 @@ sf_block * searchQuicklist(sf_size_t size){
         sf_quick_lists[index].length -= 1;
         freeblk = sf_quick_lists[index].first;
         sf_quick_lists[index].first = sf_quick_lists[index].first -> body.links.next;
-        freeblk -> header -= IN_QUICK_LIST;
+        freeblk -> header ^= MAGIC;
+        freeblk -> header &= ~IN_QUICK_LIST;
+        freeblk -> header ^= MAGIC;
+
         return freeblk;
     }
     else{
@@ -335,8 +395,11 @@ sf_block * searchQuicklist(sf_size_t size){
 }
 
 void addFreeblkInQuicklist(sf_block* freeblk){
+    freeblk -> header ^= MAGIC;
     freeblk -> header |= IN_QUICK_LIST;
     uint64_t size = freeblk -> header & BLK_SIZE_MASKING_BIT;
+    freeblk -> header ^= MAGIC;
+
     int index = ((size - MIN_BLOCK_SIZE)/ALIGN_SIZE);
     if (sf_quick_lists[index].length == 5){
         sf_block *current = sf_quick_lists[index].first;
@@ -344,15 +407,21 @@ void addFreeblkInQuicklist(sf_block* freeblk){
             current = sf_quick_lists[index].first;
             sf_block *next  = sf_quick_lists[index].first -> body.links.next;
             sf_quick_lists[index].first = sf_quick_lists[index].first -> body.links.next;
+            
+            current -> header ^= MAGIC;
             current -> header &= ~THIS_BLOCK_ALLOCATED;
             current -> header &= ~IN_QUICK_LIST; 
+            current -> header ^= MAGIC;
 
-            uint64_t tempSize = current -> header & BLK_SIZE_MASKING_BIT;
+            uint64_t tempSize = ((current -> header) ^ MAGIC) & BLK_SIZE_MASKING_BIT;
             sf_block *nextBlk = (sf_block *)((void *)current + tempSize);
             nextBlk -> prev_footer = current -> header; 
-            nextBlk -> header &= ~PREV_BLOCK_ALLOCATED; 
 
+            nextBlk -> header ^= MAGIC;
+            nextBlk -> header &= ~PREV_BLOCK_ALLOCATED; 
             sf_size_t nextBlkSize = nextBlk -> header & BLK_SIZE_MASKING_BIT;
+            nextBlk -> header ^= MAGIC;
+
             sf_footer *nextBlkFooter =  (sf_footer*)((void *)nextBlk + nextBlkSize);
             *nextBlkFooter = nextBlk -> header;
 
