@@ -137,30 +137,24 @@ double sf_internal_fragmentation() {
     }
     sf_block * blk = (sf_block *)(sf_mem_start() + 32);
     void* blkEnd = sf_mem_end() - 16;
-
+    
     double totalPayload = 0;
     double totalAllocatedSize = 0;
 
     while( ((void *)blk) != blkEnd){
         long blkSize = ((blk -> header) ^ MAGIC) & BLK_SIZE_MASKING_BIT;
-        if (blk -> header & THIS_BLOCK_ALLOCATED){
+        if (((blk -> header) ^ MAGIC) & THIS_BLOCK_ALLOCATED){
             long pldSize = ((blk -> header) ^ MAGIC) >> 32;
             totalAllocatedSize += blkSize;
             totalPayload += pldSize;
         }
         blk = (void *)blk + blkSize;
     }
-    // debug("totalPayload = %f, totalAllocatedSize = %f ",totalPayload,totalAllocatedSize);
-    // debug("final answer is %f",(totalPayload/totalAllocatedSize));
     if (totalPayload == 0 || totalAllocatedSize == 0){
-        debug("totalPayload or totalAllocatedSize == 0");
         return 0.0;
     }
 
     return (totalPayload/totalAllocatedSize);
-    
-
-    // TO BE IMPLEMENTED
 }
 
 double sf_peak_utilization() {
