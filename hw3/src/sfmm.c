@@ -15,6 +15,7 @@ int ALIGN_SIZE = 16;
 uint64_t BLK_SIZE_MASKING_BIT = 0x0000FFF0;
 
 
+
 void initHeap();
 void addFreeblkInFreelist(sf_block* freeblk);
 int freelistIndexFinder(uint64_t size);
@@ -36,7 +37,7 @@ void *sf_malloc(sf_size_t size) {
         initHeap();
     }
 
-    sf_show_heap();
+
     sf_size_t requiredBlkSize = ((size + 8) % 16) ? ((((size + 8)/16) + 1) * 16 ) : (size + 8) ; 
     if (requiredBlkSize < MIN_BLOCK_SIZE) requiredBlkSize = MIN_BLOCK_SIZE;
     debug("size required is : %d",requiredBlkSize);
@@ -131,8 +132,35 @@ void *sf_realloc(void *pp, sf_size_t rsize) {
 }
 
 double sf_internal_fragmentation() {
+    if (sf_mem_start() == sf_mem_end()){
+        return 0.0;
+    }
+    sf_block * blk = (sf_block *)(sf_mem_start() + 32);
+    void* blkEnd = sf_mem_end() - 16;
+
+    double totalPayload = 0;
+    double totalAllocatedSize = 0;
+
+    while( ((void *)blk) != blkEnd){
+        long blkSize = ((blk -> header) ^ MAGIC) & BLK_SIZE_MASKING_BIT;
+        if (blk -> header & THIS_BLOCK_ALLOCATED){
+            long pldSize = ((blk -> header) ^ MAGIC) >> 32;
+            totalAllocatedSize += blkSize;
+            totalPayload += pldSize;
+        }
+        blk = (void *)blk + blkSize;
+    }
+    // debug("totalPayload = %f, totalAllocatedSize = %f ",totalPayload,totalAllocatedSize);
+    // debug("final answer is %f",(totalPayload/totalAllocatedSize));
+    if (totalPayload == 0 || totalAllocatedSize == 0){
+        debug("totalPayload or totalAllocatedSize == 0");
+        return 0.0;
+    }
+
+    return (totalPayload/totalAllocatedSize);
+    
+
     // TO BE IMPLEMENTED
-    abort();
 }
 
 double sf_peak_utilization() {
