@@ -182,7 +182,8 @@ Test(sfmm_basecode_suite, freelist, .timeout = TEST_TIMEOUT) {
 }
 
 Test(sfmm_basecode_suite, realloc_larger_block, .timeout = TEST_TIMEOUT) {
-        size_t sz_x = sizeof(int), sz_y = 10, sz_x1 = sizeof(int) * 20;
+
+	size_t sz_x = sizeof(int), sz_y = 10, sz_x1 = sizeof(int) * 20;
 	void *x = sf_malloc(sz_x);
 	/* void *y = */ sf_malloc(sz_y);
 	x = sf_realloc(x, sz_x1);
@@ -204,7 +205,8 @@ Test(sfmm_basecode_suite, realloc_larger_block, .timeout = TEST_TIMEOUT) {
 }
 
 Test(sfmm_basecode_suite, realloc_smaller_block_splinter, .timeout = TEST_TIMEOUT) {
-        size_t sz_x = sizeof(int) * 20, sz_y = sizeof(int) * 16;
+
+	    size_t sz_x = sizeof(int) * 20, sz_y = sizeof(int) * 16;
 	void *x = sf_malloc(sz_x);
 	void *y = sf_realloc(x, sz_y);
 
@@ -227,7 +229,8 @@ Test(sfmm_basecode_suite, realloc_smaller_block_splinter, .timeout = TEST_TIMEOU
 }
 
 Test(sfmm_basecode_suite, realloc_smaller_block_free_block, .timeout = TEST_TIMEOUT) {
-        size_t sz_x = sizeof(double) * 8, sz_y = sizeof(int);
+
+	    size_t sz_x = sizeof(double) * 8, sz_y = sizeof(int);
 	void *x = sf_malloc(sz_x);
 	void *y = sf_realloc(x, sz_y);
 
@@ -256,5 +259,83 @@ Test(sfmm_basecode_suite, realloc_smaller_block_free_block, .timeout = TEST_TIME
 //DO NOT DELETE THESE COMMENTS
 //############################################
 
-//Test(sfmm_student_suite, student_test_1, .timeout = TEST_TIMEOUT) {
-//}
+// check quick list flush
+Test(sfmm_student_suite, student_test_1, .timeout = TEST_TIMEOUT) {
+	size_t sz_x = 8;
+    void *a1 = sf_malloc(sz_x);
+    void *a2 = sf_malloc(sz_x);
+    void *a3 = sf_malloc(sz_x);
+    void *a4 = sf_malloc(sz_x);
+    void *a5 = sf_malloc(sz_x);
+    void *a6 = sf_malloc(sz_x);
+    sf_free(a1);
+    sf_free(a2);
+    sf_free(a3);
+    sf_free(a4);
+    sf_free(a5);
+
+	assert_quick_list_block_count(0, 5);
+	assert_quick_list_block_count(32, 5);
+	assert_free_block_count(0, 1);
+	assert_free_block_count(784, 1);
+
+    sf_free(a6);
+
+	assert_quick_list_block_count(0, 1);
+	assert_quick_list_block_count(32, 1);
+	assert_free_block_count(0, 2);
+	assert_free_block_count(160, 1);
+	assert_free_block_count(784, 1);
+}
+
+// use whole new page size free blk 
+Test(sfmm_student_suite, student_test_2, .timeout = TEST_TIMEOUT) {
+	size_t sz_x = 968, sz_y = 32;
+    sf_malloc(sz_x);
+    
+	assert_quick_list_block_count(0, 0);
+	assert_free_block_count(0, 0);
+
+    sf_malloc(sz_y);
+
+	assert_quick_list_block_count(0, 0);
+	assert_free_block_count(0, 1);
+	assert_free_block_count(976, 1);
+}
+
+// check if malloc and realloc return null when 0 is given.
+Test(sfmm_student_suite, student_test_3, .timeout = TEST_TIMEOUT) {
+    void *x = sf_malloc(0);
+    cr_assert_null(x, "x is not NULL!");
+	cr_assert(sf_mem_start() == sf_mem_end(), "Heap should not be initialized");
+
+	x = sf_malloc(8);
+	x = sf_realloc(x,0);
+	cr_assert_null(x, "x is not NULL!");
+}
+
+// check if internal fragmentation return 0
+Test(sfmm_student_suite, student_test_4, .timeout = TEST_TIMEOUT) {
+	cr_assert(sf_internal_fragmentation() == 0, "Internal fragmentation should be 0");
+
+	void *x = sf_malloc(32);
+	sf_free(x);
+	cr_assert(sf_internal_fragmentation() == 0, "Internal fragmentation should be 0");
+
+	assert_quick_list_block_count(0, 1);
+	assert_quick_list_block_count(48, 1);
+	assert_free_block_count(0, 1);
+	assert_free_block_count(928, 1);
+
+
+	x = sf_malloc(5000);
+	sf_free(x);
+	cr_assert(sf_internal_fragmentation() == 0, "Internal fragmentation should be 0");
+	assert_quick_list_block_count(0, 1);
+	assert_quick_list_block_count(48, 1);
+	assert_free_block_count(0, 1);
+	assert_free_block_count(5024, 1);
+
+
+
+}
