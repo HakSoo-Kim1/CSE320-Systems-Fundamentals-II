@@ -70,9 +70,9 @@ Test(sfmm_basecode_suite, malloc_an_int, .timeout = TEST_TIMEOUT) {
 
 	cr_assert(*x == 4, "sf_malloc failed to give proper space for an int!");
 	sf_block *bp = (sf_block *)((char *)x - 16);
-	cr_assert((bp->header >> 32) & 0xffffffff,
+	cr_assert((((bp->header ^ MAGIC) >> 32) & 0xffffffff) == sz,
 		  "Malloc'ed block payload size (%ld) not what was expected (%ld)!",
-		  (bp->header >> 32) & 0xffffffff, sz);
+		  (((bp->header ^ MAGIC) >> 32) & 0xffffffff), sz);
 
 	assert_quick_list_block_count(0, 0);
 	assert_free_block_count(0, 1);
@@ -182,8 +182,7 @@ Test(sfmm_basecode_suite, freelist, .timeout = TEST_TIMEOUT) {
 }
 
 Test(sfmm_basecode_suite, realloc_larger_block, .timeout = TEST_TIMEOUT) {
-
-	size_t sz_x = sizeof(int), sz_y = 10, sz_x1 = sizeof(int) * 20;
+        size_t sz_x = sizeof(int), sz_y = 10, sz_x1 = sizeof(int) * 20;
 	void *x = sf_malloc(sz_x);
 	/* void *y = */ sf_malloc(sz_y);
 	x = sf_realloc(x, sz_x1);
@@ -205,8 +204,7 @@ Test(sfmm_basecode_suite, realloc_larger_block, .timeout = TEST_TIMEOUT) {
 }
 
 Test(sfmm_basecode_suite, realloc_smaller_block_splinter, .timeout = TEST_TIMEOUT) {
-
-	    size_t sz_x = sizeof(int) * 20, sz_y = sizeof(int) * 16;
+        size_t sz_x = sizeof(int) * 20, sz_y = sizeof(int) * 16;
 	void *x = sf_malloc(sz_x);
 	void *y = sf_realloc(x, sz_y);
 
@@ -229,8 +227,7 @@ Test(sfmm_basecode_suite, realloc_smaller_block_splinter, .timeout = TEST_TIMEOU
 }
 
 Test(sfmm_basecode_suite, realloc_smaller_block_free_block, .timeout = TEST_TIMEOUT) {
-
-	    size_t sz_x = sizeof(double) * 8, sz_y = sizeof(int);
+        size_t sz_x = sizeof(double) * 8, sz_y = sizeof(int);
 	void *x = sf_malloc(sz_x);
 	void *y = sf_realloc(x, sz_y);
 
