@@ -1,40 +1,14 @@
 #include <stdio.h>
 #include "sfmm.h"
-#include "debug.h"
 
 int main(int argc, char const *argv[]) {
+    double* ptr = sf_malloc(sizeof(double));
 
-    // void * a = sf_malloc(2);
-    //     // void * b = sf_malloc(2000);
-    //     // if(b);
-    // sf_show_heap();
-    // sf_peak_utilization();
-    // sf_internal_fragmentation();
-    // a = sf_realloc(a,3000);
-    //     sf_show_heap();
+    *ptr = 320320320e-320;
 
-    //     sf_peak_utilization();
-    //         sf_internal_fragmentation();
+    printf("%f\n", *ptr);
 
-
-    // sf_free(a);
-    //     sf_show_heap();
-
-    // sf_peak_utilization();
-    //     sf_internal_fragmentation();
-
-    void * x = sf_malloc(32);
-    sf_show_heap();
-    sf_free(x);
-sf_show_heap();
-    debug("hello");
-    sf_show_heap();
-
-    debug("bye");
-    x = sf_malloc(32);
-    sf_malloc(32);
-    sf_free(x);
-    sf_peak_utilization();
+    sf_free(ptr);
 
     return EXIT_SUCCESS;
 }

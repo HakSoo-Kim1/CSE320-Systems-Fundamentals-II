@@ -75,11 +75,9 @@ void sf_free(void *pp) {
     sf_header *freeingBlkHeader = (sf_header *)(pp - 8);
     sf_size_t freeingBlkSize = (*freeingBlkHeader ^ MAGIC) & BLK_SIZE_MASKING_BIT;
     sf_size_t payloadSize = (*freeingBlkHeader ^ MAGIC) >> 32;
-    debug("freeing payloadSize %d",payloadSize);
-        *freeingBlkHeader ^= MAGIC;
-
+    *freeingBlkHeader ^= MAGIC;
     *freeingBlkHeader = (*freeingBlkHeader << 32) >> 32;
-        *freeingBlkHeader ^= MAGIC;
+    *freeingBlkHeader ^= MAGIC;
 
     if (freeingBlkSize >= ((NUM_QUICK_LISTS * ALIGN_SIZE) + MIN_BLOCK_SIZE)){ 
         *freeingBlkHeader ^= MAGIC;
@@ -518,7 +516,7 @@ int isValidAddress(void * addr){
         return 0;
     }
 
-    if ((void *)footer >= (sf_mem_end() - 16)){ // maybe - 8? check needed
+    if ((void *)footer >= (sf_mem_end() - 8)){ 
         return 0;
     }
 
