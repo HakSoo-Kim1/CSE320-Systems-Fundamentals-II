@@ -339,3 +339,21 @@ Test(sfmm_student_suite, student_test_4, .timeout = TEST_TIMEOUT) {
 
 
 }
+
+Test(sfmm_student_suite, student_test_5, .timeout = TEST_TIMEOUT) {
+	cr_assert(sf_peak_utilization() == 0, "sf_peak_utilization should be 0");
+
+	void * x = sf_malloc(32);
+	sf_free(x);
+	cr_assert(sf_peak_utilization() == ((double)(32)/((double)1024)), "sf_peak_utilization is not correct");
+
+	sf_malloc(32);
+	sf_free(x);
+	cr_assert(sf_peak_utilization() == ((double)(32)/((double)1024)), "sf_peak_utilization is not correct");
+
+	x = sf_malloc(32);
+    sf_malloc(32);
+    sf_free(x);
+	cr_assert(sf_peak_utilization() == ((double)(64)/((double)1024)), "sf_peak_utilization is not correct");
+
+}
