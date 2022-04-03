@@ -13,6 +13,15 @@
  * store can hold.
  */
 
+typedef struct stmt_link {
+    STMT *stmtInfo;
+    struct stmt_link *next;
+} STMT_LINK;
+
+STMT_LINK *head = NULL;
+int programCounter = -1;
+
+
 /**
  * @brief  Output a listing of the current contents of the program store.
  * @details  This function outputs a listing of the current contents of the
@@ -46,9 +55,44 @@ int prog_list(FILE *out) {
  * @param stmt  The statement to be inserted.
  * @return  0 if successful, -1 if any error occurred.
  */
-int prog_insert(STMT *stmt) {
+int prog_insert(STMT *stmt) {       // when are we freeing ?  
+    STMT_LINK* newNode = malloc(sizeof(STMT_LINK));
+    newNode -> stmtInfo = stmt;
+    if (!head){
+        newNode -> next = head;
+        head = newNode;
+    }
+    else if (newNode -> stmtInfo -> lineno <= head -> stmtInfo -> lineno){
+        if (newNode -> stmtInfo -> lineno == head -> stmtInfo -> lineno){
+            free_stmt(head -> stmtInfo);
+            newNode -> next = head -> next;
+            free(head);
+            head = newNode;
+        }
+        else{
+            newNode -> next = head;
+            head = newNode;
+        }
+    }
+    else{
+        STMT_LINK* node = head;
+        while(node -> next && ((node -> next -> stmtInfo -> lineno) < (newNode -> stmtInfo -> lineno)) ){
+            node = node -> next;
+        }
+        if (node -> next && ((node -> next -> stmtInfo -> lineno) == (newNode -> stmtInfo -> lineno)) ){
+            free_stmt(node -> next -> stmtInfo);
+            node -> next -> stmtInfo = newNode -> stmtInfo;
+            free(newNode);
+        }
+        else{
+            newNode -> next = node -> next;
+            node -> next = newNode;
+        }
+        
+    }
+    return 0;
     // TO BE IMPLEMENTED
-    abort();
+    // abort();
 }
 
 /**
