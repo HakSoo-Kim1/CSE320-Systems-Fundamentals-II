@@ -14,12 +14,12 @@
  */
 
 typedef struct stmt_link {
-    STMT *stmtInfo;
+    STMT *stmtInfo;                   
     struct stmt_link *next;
 } STMT_LINK;
 
 STMT_LINK *head = NULL;
-int programCounter = -1;
+int programCounter = 0;
 
 
 /**
@@ -34,8 +34,20 @@ int programCounter = -1;
  * @return  0 if successful, -1 if any error occurred.
  */
 int prog_list(FILE *out) {
-    // TO BE IMPLEMENTED
-    abort();
+    int counter = 0;
+    STMT_LINK *node = head; 
+    while(counter != programCounter){
+        show_stmt(out,node->stmtInfo);
+        node = node -> next;
+        counter += 1;
+    }
+    fprintf(out, "-->\n");
+    while(node){
+        show_stmt(out,node->stmtInfo);
+        node = node -> next;
+    }
+
+    return 0;
 }
 
 /**
@@ -56,6 +68,7 @@ int prog_list(FILE *out) {
  * @return  0 if successful, -1 if any error occurred.
  */
 int prog_insert(STMT *stmt) {       // when are we freeing ?  
+    programCounter += 1;
     STMT_LINK* newNode = malloc(sizeof(STMT_LINK));
     newNode -> stmtInfo = stmt;
     if (!head){
@@ -113,8 +126,34 @@ int prog_insert(STMT *stmt) {       // when are we freeing ?
  * @param max  Upper end of the range of line numbers to be deleted.
  */
 int prog_delete(int min, int max) {
-    // TO BE IMPLEMENTED
-    abort();
+    STMT_LINK* node = head;
+    STMT_LINK* prevNode = NULL;
+
+    while (node && (min <= node -> stmtInfo -> lineno && node -> stmtInfo -> lineno <= max)){
+        head = node -> next;
+        free_stmt(node -> stmtInfo);
+        free(node);
+        node = head;
+        programCounter -= 1;
+    }
+    
+    while (node){
+        while(node && !(min <= node -> stmtInfo -> lineno && node -> stmtInfo -> lineno <= max)){
+            prevNode = node;
+            node = node -> next;
+        }
+        if (!node){
+            return 0;
+        }
+
+        prevNode -> next = node -> next;
+        free_stmt(node -> stmtInfo);
+        free(node);
+        programCounter -= 1;
+        node = prevNode -> next;
+
+    }
+    return 0;
 }
 
 /**
@@ -123,8 +162,7 @@ int prog_delete(int min, int max) {
  * before the first statement in the program.
  */
 void prog_reset(void) {
-    // TO BE IMPLEMENTED
-    abort();
+    programCounter = 0;
 }
 
 /**
@@ -139,8 +177,17 @@ void prog_reset(void) {
  * counter position, if any, otherwise NULL.
  */
 STMT *prog_fetch(void) {
-    // TO BE IMPLEMENTED
-    abort();
+    int counter = 0;
+    STMT_LINK *node = head; 
+    while(counter != programCounter){
+        node = node -> next;
+        counter += 1;
+        if (!node){
+            debug("\t prog_fetch special case (at the end of list)");
+            return NULL;
+        }
+    }
+    return node -> stmtInfo;
 }
 
 /**
@@ -155,8 +202,8 @@ STMT *prog_fetch(void) {
  * position, if any, otherwise NULL.
  */
 STMT *prog_next() {
-    // TO BE IMPLEMENTED
-    abort();
+    programCounter += 1;
+    return prog_fetch();
 }
 
 /**
@@ -175,6 +222,16 @@ STMT *prog_next() {
  * statement exists, otherwise NULL.
  */
 STMT *prog_goto(int lineno) {
-    // TO BE IMPLEMENTED
-    abort();
+    STMT_LINK *node = head; 
+    int counter = 0; 
+    while(node){
+        if (node -> stmtInfo -> lineno == lineno){
+            programCounter = counter;
+            return node -> stmtInfo;
+        }
+        counter += 1;
+        node = node -> next;
+    }
+    return NULL;
+
 }

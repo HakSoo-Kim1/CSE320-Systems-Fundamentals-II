@@ -1,6 +1,9 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <errno.h>
+
+#include "debug.h"
 
 /*
  * This is the "data store" module for Mush.
@@ -13,6 +16,15 @@
  * a variable as an integer is possible if the current value of the
  * variable is the string representation of an integer.
  */
+
+typedef struct var_link {
+    char *var;       
+    char *val;            
+    struct var_link *prev;
+    struct var_link *next;
+} VAR_LINK;
+
+VAR_LINK varHead = {NULL, NULL, &varHead, &varHead};
 
 /**
  * @brief  Get the current value of a variable as a string.
@@ -29,8 +41,18 @@
  * otherwise NULL.
  */
 char *store_get_string(char *var) {
-    // TO BE IMPLEMENTED
-    abort();
+    debug("store_get_string is called");
+    VAR_LINK *head = &varHead;
+    VAR_LINK *node = varHead.next;
+
+    while(node != head){
+        if (strcmp(node->var, var) == 0){
+            return node -> val;
+        }
+        node = node -> next;
+    }
+    debug("\t\t\tERROR");
+    return NULL;
 }
 
 /**
@@ -47,8 +69,25 @@ char *store_get_string(char *var) {
  * otherwise 0 is returned.
  */
 int store_get_int(char *var, long *valp) {
-    // TO BE IMPLEMENTED
-    abort();
+        debug("store_get_int is called");
+
+    char *valString = store_get_string(var);
+    if (!valString){
+        return -1;
+    }
+    char *ptr;
+    debug("valString is %s",valString);
+    *valp = strtol(valString, &ptr, 10);
+    debug("converted val in long form : %ld", *valp);
+    debug("rest of string after converted in store get int is : %s %d", ptr, *(int *)ptr);
+
+    if ((errno == 0 && valString && !*ptr)){
+        return 0;
+    }
+    else{
+        debug("\t\t\t\t\tERROR!!!");
+        return -1;
+    }
 }
 
 /**
@@ -60,15 +99,55 @@ int store_get_int(char *var, long *valp) {
  * and the variable becomes un-set.  Ownership of the variable and
  * the value strings is not transferred to the data store module as
  * a result of this call; the data store module makes such copies of
- * these strings as it may require.
+ * these strings as it may require. 
  *
  * @param  var  The variable whose value is to be set.
  * @param  val  The value to set, or NULL if the variable is to become
  * un-set.
  */
 int store_set_string(char *var, char *val) {
-    // TO BE IMPLEMENTED
-    abort();
+        debug("storing var : %s = %s in store_set_string",var,val);
+
+    VAR_LINK *head = &varHead;
+    VAR_LINK *node = varHead.next;
+
+    while(node != head){
+        if (strcmp(node->var, var) == 0){
+            if (val == NULL){
+                node -> prev -> next = node -> next;
+                node -> next -> prev = node -> prev;
+                free(node -> var);
+                free(node -> val);
+                free(node);
+            }
+            else{
+                node -> val = val;
+            }
+            return 0;
+        }
+        node = node -> next;
+    }
+
+    // there is no matched variable in map
+
+    VAR_LINK *newVar = malloc(sizeof(VAR_LINK));
+
+    newVar -> var = malloc(strlen(var) + 1);
+    strcpy(newVar -> var, var);
+
+    newVar -> val = malloc(strlen(val) + 1);
+    strcpy(newVar -> val, val);
+
+    debug("\t storing var : %s = %s in store_set_string",newVar -> var,newVar -> val);
+
+
+    VAR_LINK *last =  varHead.prev;
+    newVar -> prev = last;
+    newVar -> next = &varHead;
+    varHead.prev = newVar;
+    last -> next = newVar;
+
+    return 0;
 }
 
 /**
@@ -84,8 +163,13 @@ int store_set_string(char *var, char *val) {
  * @param  val  The value to set.
  */
 int store_set_int(char *var, long val) {
-    // TO BE IMPLEMENTED
-    abort();
+    debug("storing var : %s = %ld in store_set_int ",var,val);
+
+    char valString[255];
+    sprintf(valString, "%ld", val);
+    debug("int to string result is : %s",valString);
+
+    return store_set_string(var,valString);
 }
 
 /**
@@ -97,6 +181,17 @@ int store_set_int(char *var, long val) {
  * @param f  The stream to which the store contents are to be printed.
  */
 void store_show(FILE *f) {
-    // TO BE IMPLEMENTED
-    abort();
+    debug("---- stored value ----");
+    VAR_LINK *head = &varHead;
+    VAR_LINK *node = varHead.next;
+    fprintf(stderr, "{");
+    while(node != head){
+        fprintf(stderr,"var : %s -> %s \t",node -> var, node -> val);
+        // debug("\t\t var : %d -> %d",node -> var, node -> val);
+
+        node = node -> next;
+    }
+        fprintf(stderr, "}\n");
+
+
 }
