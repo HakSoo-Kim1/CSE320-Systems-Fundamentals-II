@@ -41,7 +41,7 @@ VAR_LINK varHead = {NULL, NULL, &varHead, &varHead};
  * otherwise NULL.
  */
 char *store_get_string(char *var) {
-    debug("store_get_string is called");
+    // debug("store_get_string is called");
     VAR_LINK *head = &varHead;
     VAR_LINK *node = varHead.next;
 
@@ -51,7 +51,7 @@ char *store_get_string(char *var) {
         }
         node = node -> next;
     }
-    debug("\t\t\tERROR");
+    // debug("\t\t\tERROR");
     return NULL;
 }
 
@@ -69,23 +69,23 @@ char *store_get_string(char *var) {
  * otherwise 0 is returned.
  */
 int store_get_int(char *var, long *valp) {
-        debug("store_get_int is called");
+        // debug("store_get_int is called");
 
     char *valString = store_get_string(var);
     if (!valString){
         return -1;
     }
     char *ptr;
-    debug("valString is %s",valString);
+    // debug("valString is %s",valString);
     *valp = strtol(valString, &ptr, 10);
-    debug("converted val in long form : %ld", *valp);
-    debug("rest of string after converted in store get int is : %s %d", ptr, *(int *)ptr);
+    // debug("converted val in long form : %ld", *valp);
+    // debug("rest of string after converted in store get int is : %s %d", ptr, *(int *)ptr);
 
     if ((errno == 0 && valString && !*ptr)){
         return 0;
     }
     else{
-        debug("\t\t\t\t\tERROR!!!");
+        // debug("\t\t\t\t\tERROR!!!");
         return -1;
     }
 }
@@ -106,7 +106,7 @@ int store_get_int(char *var, long *valp) {
  * un-set.
  */
 int store_set_string(char *var, char *val) {
-        debug("storing var : %s = %s in store_set_string",var,val);
+        // debug("storing var : %s = %s in store_set_string",var,val);
 
     VAR_LINK *head = &varHead;
     VAR_LINK *node = varHead.next;
@@ -138,7 +138,7 @@ int store_set_string(char *var, char *val) {
     newVar -> val = malloc(strlen(val) + 1);
     strcpy(newVar -> val, val);
 
-    debug("\t storing var : %s = %s in store_set_string",newVar -> var,newVar -> val);
+    // debug("\t storing var : %s = %s in store_set_string",newVar -> var,newVar -> val);
 
 
     VAR_LINK *last =  varHead.prev;
@@ -163,11 +163,11 @@ int store_set_string(char *var, char *val) {
  * @param  val  The value to set.
  */
 int store_set_int(char *var, long val) {
-    debug("storing var : %s = %ld in store_set_int ",var,val);
+    // debug("storing var : %s = %ld in store_set_int ",var,val);
 
     char valString[255];
     sprintf(valString, "%ld", val);
-    debug("int to string result is : %s",valString);
+    // debug("int to string result is : %s",valString);
 
     return store_set_string(var,valString);
 }
@@ -184,14 +184,14 @@ void store_show(FILE *f) {
     debug("---- stored value ----");
     VAR_LINK *head = &varHead;
     VAR_LINK *node = varHead.next;
-    fprintf(stderr, "{");
+    fprintf(f, "{");
     while(node != head){
-        fprintf(stderr,"var : %s -> %s \t",node -> var, node -> val);
+        fprintf(f,"var : %s -> %s \t",node -> var, node -> val);
         // debug("\t\t var : %d -> %d",node -> var, node -> val);
 
         node = node -> next;
     }
-        fprintf(stderr, "}\n");
+        fprintf(f, "}\n");
 
 
 }

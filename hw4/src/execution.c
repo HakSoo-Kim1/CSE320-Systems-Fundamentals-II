@@ -169,11 +169,15 @@ int exec_stmt(STMT *stmt) {
     case SET_STMT_CLASS:
 	switch(stmt->members.set_stmt.expr->type) {
 	case NUM_VALUE_TYPE:
+		debug("\t NUM_VALUE_TYPE is read ");
 	    val = eval_to_numeric(stmt->members.set_stmt.expr);
+		debug("evaluated numeric value is %d", val);
 	    store_set_int(stmt->members.set_stmt.name, val);
 	    break;
 	case STRING_VALUE_TYPE:
+		debug("\t STRING_VALUE_TYPE is read ");
 	    str = eval_to_string(stmt->members.set_stmt.expr);
+		debug("evaluated str value is %s", str);
 	    store_set_string(stmt->members.set_stmt.name, str);
 	    break;
 	default:
@@ -262,11 +266,13 @@ int exec_stmt(STMT *stmt) {
  * with a control point to escape to in case there is an error during evaluation.
  */
 long eval_to_numeric(EXPR *expr) {
+	debug("eval_to_numeric");
     char *endp, *str1, *str2;
     long opr1, opr2;
     int err;
     switch(expr->class) {
     case LIT_EXPR_CLASS:
+	debug("1");
 	opr1 = strtol(expr->members.value, &endp, 0);
 	if(*endp == '\0') {
 	    return opr1;
@@ -276,6 +282,8 @@ long eval_to_numeric(EXPR *expr) {
 	}
     case STRING_EXPR_CLASS:
     case NUM_EXPR_CLASS:
+	debug("2");
+
 	err = store_get_int(expr->members.variable, &opr1);
 	if(err) {
 	    fprintf(stderr, "Variable %s does not have an integer value\n",
@@ -352,12 +360,15 @@ long eval_to_numeric(EXPR *expr) {
  * with a control point to escape to in case there is an error during evaluation.
  */
 char *eval_to_string(EXPR *expr) {
+	debug("eval_to_string");
     char *str1, *str2;
     switch(expr->class) {
     case LIT_EXPR_CLASS:
+	debug("1");
 	return expr->members.value;
     case NUM_EXPR_CLASS:
     case STRING_EXPR_CLASS:
+	debug("2");
 	str1 = store_get_string(expr->members.variable);
 	if(!str1) {
 	    fprintf(stderr, "Variable %s does not have a value\n",
@@ -375,6 +386,7 @@ char *eval_to_string(EXPR *expr) {
 	    abort();
 	}
     case BINARY_EXPR_CLASS:
+	debug("3");
 	str1 = eval_to_string(expr->members.binary_expr.arg1);
 	str2 = eval_to_string(expr->members.binary_expr.arg2);
 	switch(expr->members.binary_expr.oprtr) {
