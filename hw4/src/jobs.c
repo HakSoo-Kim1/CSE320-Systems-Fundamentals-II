@@ -53,14 +53,15 @@ typedef enum {
 typedef struct job_link {
     PIPELINE *pline;
     pid_t jobPGID;        
-    int id;       
+    int id;  
+    int processStatus;
     JOB_STATUS status;
     struct job_link *prev;
     struct job_link *next;
 } JOB_LINK;
 
-// JOB_LINK jobHead = {NULL, -1, -1, -1, NO_STATUS, &jobHead, &jobHead};
-JOB_LINK jobHead = {NULL, -1, -1, NO_STATUS, &jobHead, &jobHead};
+JOB_LINK jobHead = {NULL, -1, -1, -1, NO_STATUS, &jobHead, &jobHead};
+// JOB_LINK jobHead = {NULL, -1, -1, NO_STATUS, &jobHead, &jobHead};
 
 int count_args(ARG *args);
 void sigchldHandler(int s);
@@ -76,15 +77,8 @@ void insertNewJob(JOB_LINK *newJob);
  */
 int jobs_init(void) {
     Signal(SIGCHLD, sigchldHandler);
+    // io signal to be implemented 
 
-
-    //
-        // Signal(SIGCHLD, sigchldHandler); iosig
-
-    // signal handler 
-
-    // TO BE IMPLEMENTED
-    // abort();
     return 0;
 }
 
@@ -177,9 +171,8 @@ int jobs_show(FILE *file) {
  */
 int jobs_run(PIPELINE *pline) {
     
-    sigset_t mask_child, prev;
+    sigset_t mask_child;
     Sigemptyset(&mask_child);
-    Sigemptyset(&prev);
     Sigaddset(&mask_child, SIGCHLD);
     Sigprocmask(SIG_BLOCK, &mask_child, NULL);
 
@@ -239,17 +232,17 @@ int jobs_run(PIPELINE *pline) {
 
                 int argsNum = count_args(commandNode -> args);
                 char *args[argsNum + 1]; 
-                // debug("argsNum is %d", argsNum);
                 ARG *currArg = commandNode -> args;
                 for (int i = 0; i < argsNum ; i++){
-                    args[i] = malloc(strlen(currArg -> expr -> members.variable) + 1);
-                    strcpy(args[i], currArg -> expr -> members.variable);
-                    // debug(" args[%d] = %s",i, currArg -> expr -> members.variable);
+                    char *str = eval_to_string(currArg -> expr);
+                    args[i] = malloc(strlen(str) + 1);
+                    strcpy(args[i], str);
                     currArg = currArg -> next;
                 }
                 args[argsNum] = NULL;
                 debug("EXECUTING %s",args[0]);
                 int isError = execvp(args[0],args);
+                if(isError);
                 //// have to free 
                 debug("\t\t\t\t\t\t\t\tFAILED");
 
@@ -265,36 +258,14 @@ int jobs_run(PIPELINE *pline) {
         pid_t pid;
         while ((pid = waitpid(-1, NULL, 0)) > 0) { 
         }
-        debug("leader start WAITING");
-
-        sleep(10);
-
-        debug("leader exit");
         exit(EXIT_SUCCESS);
     }
 // unblock 
-    // sleep(10);
-    // sicpomask(); mask sigchild
-        newJob -> status = RUNNING_STATUS;
-        newJob -> jobPGID = leaderPID;
-        debug("leader pid is %d",leaderPID);
+    newJob -> status = RUNNING_STATUS;
+    newJob -> jobPGID = leaderPID;
+    debug("leader pid is %d",leaderPID);
     Sigprocmask(SIG_UNBLOCK, &mask_child, NULL);
 
-        // newJob -> jobPID = leaderPID;
-    // newJob -> jobPGID = getpgrp();
-        // debug()
-
-    // unblock sigchild 
-
-    // sleep(10);
-    // else{  
-    //     waitpid(leaderPID, &leaderStatus, 0);
-    //     // int status = waitpid(leaderPID, &leaderStatus, 0);
-    //     // debug("result from waitpid is : %d",status);
-    //     if (!WIFEXITED(leaderStatus)){
-    //         exit(EXIT_FAILURE);
-    //     }
-    // }
     return newJob -> id;
 
 }
@@ -310,7 +281,7 @@ int jobs_run(PIPELINE *pline) {
  * or -1 if any error occurs that makes it impossible to wait for the specified job.
  */
 int jobs_wait(int jobid) {
-    int leaderStatus;
+    // int leaderStatus;
     JOB_LINK *head = &jobHead;
     JOB_LINK *node = jobHead.next;
     JOB_LINK *job = NULL;
@@ -323,19 +294,25 @@ int jobs_wait(int jobid) {
     }
 
     if (!job){debug("ERROR OCCURED IN JOBS WAIT");return -1;}
+    sigset_t mask;
+    sigemptyset(&mask);
 
-    while(job -> status == RUNNING_STATUS){
-        sigset_t mask;
-        sigemptyset(&mask);
+    while((job -> status != COMPLETED_STATUS) && (job -> status != ABORTED_STATUS) && (job -> status != CANCELED_STATUS)){
         debug("!!! WAITING IN JOBS WAIT");
         sigsuspend(&mask);
         debug("!!! WAITING IN JOBS DONE");
     }
-    debug("leaderPID waiting");
-    int result = waitpid(job -> jobPGID, &leaderStatus, 0);
-    debug("leaderPID done %d",result);
+    // job -> processStatus;
+    // printf("WIFEXITED : %d\n",WIFEXITED(status));
+    // printf("WEXITSTATUS : %d\n",WEXITSTATUS(jobs -> processStatus));
+    // printf("WIFSIGNALED : %d\n",WIFSIGNALED(status));
 
-    return result;
+
+    // int result = waitpid(job -> jobPGID, &leaderStatus, 0); /// not sure
+    // debug("leadaerstatus%d")
+    // debug("leaderPID done %d",result);
+
+    return job -> processStatus;
 }
 
 /**
@@ -367,9 +344,34 @@ int jobs_poll(int jobid) {
  * @return  0 if the job was successfully expunged, -1 if the job could not be expunged.
  */
 int jobs_expunge(int jobid) {
-    // TO BE IMPLEMENTED
-    // abort();
-    return 0;
+    JOB_LINK *head = &jobHead;
+    JOB_LINK *node = jobHead.next;
+    JOB_LINK *job = NULL;
+    while(node != head){
+        if (node -> id == jobid){
+            job = node;
+            break;
+        }
+        node = node -> next;
+    }
+
+    if (!job){debug("ERROR OCCURED IN jobs_expunge");return -1;}
+
+    if((job -> status == COMPLETED_STATUS) || (job -> status == ABORTED_STATUS) || (job -> status == CANCELED_STATUS)){
+        sigset_t mask_child;
+        Sigemptyset(&mask_child);
+        Sigaddset(&mask_child, SIGCHLD);
+        Sigprocmask(SIG_BLOCK, &mask_child, NULL);
+        job -> prev -> next = job -> next;
+        job -> next -> prev = job -> prev;
+        free_pipeline(job -> pline);
+        free(job);
+        Sigprocmask(SIG_UNBLOCK, &mask_child, NULL);
+        return 0;
+    }
+    else{
+        return -1;
+    }
 }
 
 /**
@@ -390,9 +392,23 @@ int jobs_expunge(int jobid) {
  * error occurred.
  */
 int jobs_cancel(int jobid) {
+    JOB_LINK *head = &jobHead;
+    JOB_LINK *node = jobHead.next;
+    JOB_LINK *job = NULL;
+    while(node != head){
+        if (node -> id == jobid){
+            job = node;
+            break;
+        }
+        node = node -> next;
+    }
+
+    if (!job){debug("ERROR OCCURED IN JOBS WAIT");return -1;}
+    
+
     // TO BE IMPLEMENTED
     // abort();
-    return 0;
+    return kill(job->jobPGID, SIGKILL);
 }
 
 /**
@@ -420,8 +436,20 @@ char *jobs_get_output(int jobid) {
  * @return -1 if any error occurred, 0 otherwise.
  */
 int jobs_pause(void) {
+    sigset_t mask, old;
+    sigemptyset(&old);
+    sigemptyset(&mask);
 
-/// sigsuspend? 
+    sigfillset(&mask);
+    sigdelset(&mask,SIGCHLD);
+    // sigdelset(&mask,SIGIO);
+
+    sigprocmask(SIG_BLOCK, &mask, &old);
+    debug("WAITING in jobs pause %d", sigismember(&old,SIGCHLD));
+    
+    sigsuspend(&old);
+    debug("waiting done in jobs pause");
+
 
     // TO BE IMPLEMENTED
     // abort();
@@ -467,6 +495,9 @@ void sigchldHandler(int s) {
             debug("\t\t\t not job id process found in signal");
             continue;
         }
+
+        job -> processStatus = leaderStatus;
+
                 // what if cannot find? 
         if (WIFEXITED(leaderStatus)){
             debug("completed process found in handler %d",job -> jobPGID);
@@ -474,7 +505,7 @@ void sigchldHandler(int s) {
         }
         else{
             debug("canceld process found in handler %d",job -> jobPGID);
-            node -> status = CANCEL_STMT_CLASS;
+            node -> status = CANCELED_STATUS;
         }
     }
     debug("EXITING HANDLER");
