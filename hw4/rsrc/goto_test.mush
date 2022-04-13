@@ -1,8 +1,4 @@
 10 goto 30
-list
 20 stop
-list
 30 echo yes
-list
 run
-list
