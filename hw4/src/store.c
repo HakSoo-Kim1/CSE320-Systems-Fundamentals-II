@@ -80,7 +80,6 @@ int store_get_int(char *var, long *valp) {
     *valp = strtol(valString, &ptr, 10);
     debug("converted val in long form : %ld", *valp);
     debug("rest of string after converted in store get int is : %s", ptr);
-        debug("\t\t\t\t\t\t %d", errno);
 
     if (valString && !*ptr){
         return 0;
@@ -194,7 +193,7 @@ void store_show(FILE *f) {
 
         node = node -> next;
     }
-        fprintf(f, "}\n");
+        fprintf(f, "}");
 
 
 }

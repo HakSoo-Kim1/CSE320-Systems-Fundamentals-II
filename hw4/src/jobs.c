@@ -65,6 +65,8 @@ JOB_LINK jobHead = {NULL, -1, -1, -1, NO_STATUS, &jobHead, &jobHead};
 
 int count_args(ARG *args);
 void sigchldHandler(int s);
+
+
 void insertNewJob(JOB_LINK *newJob);
 
 /**
@@ -77,8 +79,6 @@ void insertNewJob(JOB_LINK *newJob);
  */
 int jobs_init(void) {
     Signal(SIGCHLD, sigchldHandler);
-    // io signal to be implemented 
-
     return 0;
 }
 
@@ -93,10 +93,26 @@ int jobs_init(void) {
  * @return 0 if finalization is completely successful, otherwise -1.
  */
 int jobs_fini(void) {
-    // free malloc 
+    debug("jobs fini triggered");
+    sigset_t mask_child;
+    Sigemptyset(&mask_child);
+    Sigaddset(&mask_child, SIGCHLD);
+    // Sigprocmask(SIG_BLOCK, &mask_child, NULL);
+    JOB_LINK *head = &jobHead;
+    JOB_LINK *node = jobHead.next;
+    JOB_LINK *temp = NULL;
+    while(node != head){
+        temp = node -> next;
 
-    // TO BE IMPLEMENTED
-    // abort();
+        if (node -> status == RUNNING_STATUS){
+            debug("\t\t Running %d ",node -> jobPGID);
+            jobs_cancel(node -> id);
+            jobs_wait(node -> id);
+        }
+        jobs_expunge(node -> id);
+        node = temp;
+
+    }
     return 0;
 }
 
@@ -187,9 +203,9 @@ int jobs_run(PIPELINE *pline) {
     pid_t leaderPID;
 // mask 
     leaderPID = fork();
-    if (leaderPID == 0){  /// leader process
+    if (leaderPID == 0){ 
         // unmask
-        Sigprocmask(SIG_UNBLOCK, &mask_child, NULL);
+        // Sigprocmask(SIG_UNBLOCK, &mask_child, NULL);
 
         if (setpgid(getpid(), getpid()) == -1){exit(EXIT_FAILURE);}
         COMMAND *commandNode = pline -> commands;
@@ -204,6 +220,7 @@ int jobs_run(PIPELINE *pline) {
             pid_t commandPID  = fork();
             if (commandPID == 0){
                 if (setpgid(getpid(), getppid()) == -1){exit(EXIT_FAILURE);}
+                debug("get pid %d getpgid %d",getpid(),getpgid(0));
                 if (firstFlag){
                     if (input_file != NULL){
                         int input;
@@ -218,6 +235,14 @@ int jobs_run(PIPELINE *pline) {
                 }
 
                 if (commandNode -> next == NULL){
+                    if (pline -> capture_output){
+                        // if (dup2(fd[1],STDOUT_FILENO) == -1)    {exit(EXIT_FAILURE);}             
+                        // char *bp;
+                        // size_t size;
+                        // FILE *stream;
+                        // stream = open_memstream (&bp, &size);
+
+                    }
                     if (output_file != NULL){
                         int output;
                         if ((output = open(output_file, O_CREAT | O_TRUNC | O_WRONLY,S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH)) == -1){exit(EXIT_FAILURE);}
@@ -265,12 +290,10 @@ int jobs_run(PIPELINE *pline) {
         }
         exit(EXIT_SUCCESS);
     }
-// unblock 
     newJob -> status = RUNNING_STATUS;
     newJob -> jobPGID = leaderPID;
     debug("leader pid is %d",leaderPID);
     Sigprocmask(SIG_UNBLOCK, &mask_child, NULL);
-
     return newJob -> id;
 
 }
@@ -286,7 +309,6 @@ int jobs_run(PIPELINE *pline) {
  * or -1 if any error occurs that makes it impossible to wait for the specified job.
  */
 int jobs_wait(int jobid) {
-    // int leaderStatus;
     JOB_LINK *head = &jobHead;
     JOB_LINK *node = jobHead.next;
     JOB_LINK *job = NULL;
@@ -307,15 +329,6 @@ int jobs_wait(int jobid) {
         sigsuspend(&mask);
         debug("!!! WAITING IN JOBS DONE");
     }
-    // job -> processStatus;
-    // printf("WIFEXITED : %d\n",WIFEXITED(status));
-    // printf("WEXITSTATUS : %d\n",WEXITSTATUS(jobs -> processStatus));
-    // printf("WIFSIGNALED : %d\n",WIFSIGNALED(status));
-
-
-    // int result = waitpid(job -> jobPGID, &leaderStatus, 0); /// not sure
-    // debug("leadaerstatus%d")
-    // debug("leaderPID done %d",result);
 
     return job -> processStatus;
 }
@@ -331,9 +344,23 @@ int jobs_wait(int jobid) {
  * has terminated, or -1 if the job has not yet terminated or if any other error occurs.
  */
 int jobs_poll(int jobid) {
-    // TO BE IMPLEMENTED
-    // abort();
-    return 0;
+    JOB_LINK *head = &jobHead;
+    JOB_LINK *node = jobHead.next;
+    JOB_LINK *job = NULL;
+    while(node != head){
+        if (node -> id == jobid){
+            job = node;
+            break;
+        }
+        node = node -> next;
+    }
+
+    if (!job){debug("ERROR OCCURED IN jobs_poll WAIT");return -1;}
+
+    if((job -> status == COMPLETED_STATUS) || (job -> status == ABORTED_STATUS) || (job -> status == CANCELED_STATUS)){
+        return job -> processStatus;
+    }
+    return -1;
 }
 
 /**
@@ -362,7 +389,7 @@ int jobs_expunge(int jobid) {
 
     if (!job){debug("ERROR OCCURED IN jobs_expunge");return -1;}
 
-    if((job -> status == COMPLETED_STATUS)){
+    if((job -> status == COMPLETED_STATUS ||job -> status == CANCELED_STATUS || job -> status == ABORTED_STATUS )){
         sigset_t mask_child;
         Sigemptyset(&mask_child);
         Sigaddset(&mask_child, SIGCHLD);
@@ -409,19 +436,19 @@ int jobs_cancel(int jobid) {
     }
 
     if (!job){debug("ERROR OCCURED IN JOBS WAIT");return -1;}
-    kill(job->jobPGID, SIGKILL);
-    debug("KILLING %d",job->jobPGID);
-
-    if (job -> status == CANCELED_STATUS || job -> status == ABORTED_STATUS ){
-        debug("CANCEL SUCCESSFUL");
-        return 0;
-    }
-    else{
-        debug("CANCEL FAILED");
-
+    if (job -> status == CANCELED_STATUS || job -> status == ABORTED_STATUS || job -> status == COMPLETED_STATUS){
         return -1;
     }
-
+    debug("killing %d",job->jobPGID);
+    kill(job->jobPGID, SIGKILL);
+    sigset_t mask_child;
+    Sigemptyset(&mask_child);
+    Sigaddset(&mask_child, SIGCHLD);
+    Sigprocmask(SIG_BLOCK, &mask_child, NULL);
+    job -> status = CANCELED_STATUS;
+    Sigprocmask(SIG_UNBLOCK, &mask_child, NULL);
+    return 0;
+    
 }
 
 /**
@@ -526,3 +553,4 @@ void sigchldHandler(int s) {
     }
     debug("EXITING HANDLER");
 }
+
