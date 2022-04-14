@@ -150,7 +150,7 @@ int exec_stmt(STMT *stmt) {
     if(setjmp(onerror))
 	return -1;
     if(stmt->lineno)
-	debug("execute statement %d", stmt->lineno);
+	debug("\t\texecute statement %d", stmt->lineno);
     switch(stmt->class) {
     case LIST_STMT_CLASS:
 	prog_list(stdout);

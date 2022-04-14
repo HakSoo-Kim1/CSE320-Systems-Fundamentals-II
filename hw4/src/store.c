@@ -80,6 +80,7 @@ int store_get_int(char *var, long *valp) {
     *valp = strtol(valString, &ptr, 10);
     debug("converted val in long form : %ld", *valp);
     debug("rest of string after converted in store get int is : %s", ptr);
+        debug("\t\t\t\t\t\t %d", errno);
 
     if (valString && !*ptr){
         return 0;
@@ -106,7 +107,7 @@ int store_get_int(char *var, long *valp) {
  * un-set.
  */
 int store_set_string(char *var, char *val) {
-    debug("storing var : %s = %s in store_set_string",var,val);
+    debug("\tstoring var : %s = %s in store_set_string",var,val);
 
     VAR_LINK *head = &varHead;
     VAR_LINK *node = varHead.next;
@@ -140,7 +141,7 @@ int store_set_string(char *var, char *val) {
     newVar -> val = malloc(strlen(val) + 1);
     strcpy(newVar -> val, val);
 
-    debug("\t storing var : %s = %s in store_set_string",newVar -> var,newVar -> val);
+    // debug("\t storing var : %s = %s in store_set_string",newVar -> var,newVar -> val);
 
 
     VAR_LINK *last =  varHead.prev;

@@ -241,14 +241,9 @@ int jobs_run(PIPELINE *pline) {
                 }
                 args[argsNum] = NULL;
                 debug("EXECUTING %s",args[0]);
-                int isError = execvp(args[0],args);
-                if(isError);
-                //// have to free 
-                debug("\t\t\t\t\t\t\t\tFAILED");
-
-                debug("errorno is %d",errno);
-                debug("\t\ta %d", isError);
-                exit(EXIT_FAILURE);
+                execvp(args[0],args);
+                debug("FAILED!!!");
+                abort();
             }
             firstFlag = 0;
             temp = fd[0];
@@ -256,7 +251,17 @@ int jobs_run(PIPELINE *pline) {
             commandNode = commandNode -> next;
         }
         pid_t pid;
-        while ((pid = waitpid(-1, NULL, 0)) > 0) { 
+        int status;
+        int counter = 0;
+        while ((pid = waitpid(-1, &status, 0)) > 0) { 
+            counter += 1;
+            debug("\t\t\t\t wait done %d",status);
+        }
+        debug("TOTAL IS : %d ", counter);
+
+        if (WIFSIGNALED(status)){
+            debug("ABORTING");
+            abort();
         }
         exit(EXIT_SUCCESS);
     }
@@ -357,7 +362,7 @@ int jobs_expunge(int jobid) {
 
     if (!job){debug("ERROR OCCURED IN jobs_expunge");return -1;}
 
-    if((job -> status == COMPLETED_STATUS) || (job -> status == ABORTED_STATUS) || (job -> status == CANCELED_STATUS)){
+    if((job -> status == COMPLETED_STATUS)){
         sigset_t mask_child;
         Sigemptyset(&mask_child);
         Sigaddset(&mask_child, SIGCHLD);
@@ -404,11 +409,19 @@ int jobs_cancel(int jobid) {
     }
 
     if (!job){debug("ERROR OCCURED IN JOBS WAIT");return -1;}
-    
+    kill(job->jobPGID, SIGKILL);
+    debug("KILLING %d",job->jobPGID);
 
-    // TO BE IMPLEMENTED
-    // abort();
-    return kill(job->jobPGID, SIGKILL);
+    if (job -> status == CANCELED_STATUS || job -> status == ABORTED_STATUS ){
+        debug("CANCEL SUCCESSFUL");
+        return 0;
+    }
+    else{
+        debug("CANCEL FAILED");
+
+        return -1;
+    }
+
 }
 
 /**
@@ -451,8 +464,6 @@ int jobs_pause(void) {
     debug("waiting done in jobs pause");
 
 
-    // TO BE IMPLEMENTED
-    // abort();
     return 0;
 }
 
@@ -498,14 +509,19 @@ void sigchldHandler(int s) {
 
         job -> processStatus = leaderStatus;
 
-                // what if cannot find? 
         if (WIFEXITED(leaderStatus)){
             debug("completed process found in handler %d",job -> jobPGID);
             node -> status = COMPLETED_STATUS;
         }
         else{
             debug("canceld process found in handler %d",job -> jobPGID);
-            node -> status = CANCELED_STATUS;
+            if (WIFSIGNALED(leaderStatus)){
+                node -> status = ABORTED_STATUS;
+            }
+            else{
+                node -> status = CANCELED_STATUS;
+
+            }
         }
     }
     debug("EXITING HANDLER");
