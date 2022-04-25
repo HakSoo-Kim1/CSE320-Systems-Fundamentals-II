@@ -24,8 +24,6 @@ int main(int argc, char* argv[]){
     int opt;
     opterr = 0;         // prevent the error message from getopt 
 
-    // Perform required initialization of the PBX module.
-
     while((opt = getopt(argc, argv, "p:")) != -1){
     switch(opt){
       case 'p':                       // port command is given
@@ -43,23 +41,15 @@ int main(int argc, char* argv[]){
         exit(EXIT_FAILURE);
     }
 
-    // debug("%d",atoi(optarg));
-
     if ((atoi(port)) < 1024) {
         fprintf(stderr, "Wrong port format (should be greater than or equal to 1024)\n");
         exit(EXIT_FAILURE);
     }
 
+    // Perform required initialization of the PBX module.
     debug("Initializing PBX... with port : %s", port);
 
     pbx = pbx_init();
-
-    // TODO: Set up the server socket and enter a loop to accept connections
-    // on this socket.  For each connection, a thread should be started to
-    // run function pbx_client_service().  In addition, you should install
-    // a SIGHUP handler, so that receipt of SIGHUP will perform a clean
-    // shutdown of the server.
-
     Signal(SIGHUP, SIGHUP_handler);
 
     int listenfd, *connfdp;

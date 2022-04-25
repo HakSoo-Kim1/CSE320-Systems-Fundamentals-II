@@ -70,14 +70,16 @@ void *pbx_client_service(void *arg) {
                 if (ptr == buf){
                     int dialStart = strlen(dialCommand);
                     if (buf[dialStart] == '\0'){
-                        debug("no dial given");         /// maybe not necessary
-                        pbx_dial(pbx, newTu, -1);       /// maybe not necessary
+                        // debug("no dial given");         /// maybe not necessary
+                        // pbx_dial(pbx, newTu, -1);       /// maybe not necessary
                     }
                     else{
                         debug("%s",&buf[dialStart]);
-                        int dialNum = atoi(&buf[dialStart]);
+                        int dialNum = atoi(&buf[dialStart]);    // case 123a    prevent? 
                         debug("dialNum is %d",dialNum); 
-                        pbx_dial(pbx, newTu, dialNum);
+                        if (dialNum >= 0){
+                            pbx_dial(pbx, newTu, dialNum);
+                        }
                     }
                 }
             }
@@ -85,7 +87,7 @@ void *pbx_client_service(void *arg) {
                 if (ptr == buf){
                     int chatStart = strlen(chatCommand);
                     if (buf[chatStart] == '\0'){
-                        tu_chat(newTu, " ");
+                        tu_chat(newTu, "");
                     }
                     else{
                         tu_chat(newTu, &buf[chatStart]);
