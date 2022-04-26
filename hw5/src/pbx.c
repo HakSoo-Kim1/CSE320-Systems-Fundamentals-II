@@ -5,18 +5,38 @@
 
 #include "pbx.h"
 #include "debug.h"
+#include "csapp.h"
+
+typedef struct pbx
+{
+    struct tu_link *tuHead;
+    sem_t pbxMutex;
+    sem_t pbxZeroMutex;
+}PBX;
+
+typedef struct tu_link {
+    TU *tu;
+    struct tu_link *prev;
+    struct tu_link *next;
+} TU_LINK;
 
 /*
  * Initialize a new PBX.
  *
  * @return the newly initialized PBX, or NULL if initialization fails.
  */
-#if 0
 PBX *pbx_init() {
-    // TO BE IMPLEMENTED
-    abort();
+    debug("pbx init is called");
+    TU_LINK *tuHead = Malloc(sizeof(TU_LINK)); 
+    tuHead -> tu = NULL;
+    tuHead -> prev = tuHead;
+    tuHead -> next = tuHead;
+    PBX *pbx = Malloc(sizeof(PBX)); 
+    pbx -> tuHead = tuHead;
+    sem_init(&(pbx->pbxMutex), 0, 1);
+    sem_init(&(pbx->pbxZeroMutex), 0, 1);
+    return pbx;
 }
-#endif
 
 /*
  * Shut down a pbx, shutting down all network connections, waiting for all server
@@ -28,12 +48,29 @@ PBX *pbx_init() {
  *
  * @param pbx  The PBX to be shut down.
  */
-#if 0
+
 void pbx_shutdown(PBX *pbx) {
-    // TO BE IMPLEMENTED
-    abort();
+    debug("\tSHUTTING DOWN");
+    TU_LINK *tuHead = pbx -> tuHead;
+    TU_LINK *node = tuHead -> next;
+
+    P(&(pbx->pbxMutex));
+
+    while(node != tuHead){
+        debug("shutting down : %d",tu_fileno(node -> tu));
+        if (shutdown(tu_fileno(node -> tu), SHUT_RDWR) != 0) {
+            debug("error while shutting down");
+        }
+        node = node -> next;
+    }
+
+    V(&(pbx->pbxMutex));
+    P(&pbx->pbxZeroMutex);
+    Free(pbx -> tuHead);
+    Free(pbx);
+    debug("\t DONE SHUTTING DOWN");
+
 }
-#endif
 
 /*
  * Register a telephone unit with a PBX at a specified extension number.
@@ -49,12 +86,39 @@ void pbx_shutdown(PBX *pbx) {
  * @param ext  The extension number on which the TU is to be registered.
  * @return 0 if registration succeeds, otherwise -1.
  */
-#if 0
+
 int pbx_register(PBX *pbx, TU *tu, int ext) {
-    // TO BE IMPLEMENTED
-    abort();
+    debug("pbx_register is called");
+    // debug("%d %d",tu_extension(tu),tu_fileno(tu));
+    tu_set_extension(tu,ext);
+    TU_LINK *tuLink = Malloc(sizeof(TU_LINK)); 
+    tuLink -> tu = tu;
+    TU_LINK *tuHead = pbx -> tuHead;
+
+    P(&(pbx->pbxMutex));
+
+    if ((tuHead == tuHead -> prev) && (tuHead == tuHead -> next)){
+        P(&pbx->pbxZeroMutex);
+    }
+
+    TU_LINK *last =  tuHead -> prev;
+    tuLink -> prev = last;
+    tuLink -> next = tuHead;
+    tuHead -> prev = tuLink;
+    last -> next = tuLink;
+    tu_ref(tu,"register!!");
+    V(&(pbx->pbxMutex));
+
+    // int fd = tu_fileno(tu);
+    // char *buf = Malloc(MAXBUF);
+    // size_t count = sprintf(buf, "%s!%d%s", tu_state_names[TU_ON_HOOK], fd, EOL);
+    // Write(fd, buf, count);
+    // Free(buf);
+
+    return 0;
+
 }
-#endif
+
 
 /*
  * Unregister a TU from a PBX.
@@ -68,12 +132,39 @@ int pbx_register(PBX *pbx, TU *tu, int ext) {
  * @param tu  The TU to be unregistered.
  * @return 0 if unregistration succeeds, otherwise -1.
  */
-#if 0
+
 int pbx_unregister(PBX *pbx, TU *tu) {
-    // TO BE IMPLEMENTED
-    abort();
+    debug("pbx_unregister is called");
+    P(&(pbx->pbxMutex));
+    TU_LINK *tuHead = pbx -> tuHead;
+    TU_LINK *node = tuHead -> next;
+    TU_LINK *tuUnregister = NULL;
+
+    while(node != tuHead){
+        if (node -> tu == tu){
+            tuUnregister = node;
+            break;
+        }
+        node = node -> next;
+    }
+    if (!tuUnregister){return -1;}
+    
+    if(tu_hangup(tuUnregister -> tu)){return -1;};
+
+    tuUnregister -> prev -> next = tuUnregister -> next;
+    tuUnregister -> next -> prev = tuUnregister -> prev;
+    tu_unref(tuUnregister -> tu, "unregister");
+    Free(tuUnregister);
+
+    V(&(pbx->pbxMutex));
+
+    if ((tuHead == tuHead -> prev) && (tuHead == tuHead -> next)){
+        V(&pbx->pbxZeroMutex);
+    }
+    return 0;
+
+
 }
-#endif
 
 /*
  * Use the PBX to initiate a call from a specified TU to a specified extension.
@@ -83,9 +174,19 @@ int pbx_unregister(PBX *pbx, TU *tu) {
  * @param ext  The extension number to be called.
  * @return 0 if dialing succeeds, otherwise -1.
  */
-#if 0
 int pbx_dial(PBX *pbx, TU *tu, int ext) {
-    // TO BE IMPLEMENTED
-    abort();
+    debug("pbx_dial is called");
+    TU_LINK *tuHead = pbx -> tuHead;
+    TU_LINK *node = tuHead -> next;
+    TU_LINK *tuReceiver = NULL;
+    while(node != tuHead){
+        int ans = tu_extension(node -> tu);
+        if ( ans== ext){
+            tuReceiver = node;
+            break;
+        }
+        node = node -> next;
+    }
+    if (!tuReceiver){return tu_dial(tu, NULL);}
+    return tu_dial(tu, tuReceiver -> tu);
 }
-#endif

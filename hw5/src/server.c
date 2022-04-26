@@ -32,7 +32,6 @@ void *pbx_client_service(void *arg) {
     TU * newTu = tu_init(connfd);
     pbx_register(pbx, newTu, connfd);
     FILE *fp = Fdopen(connfd, "r");
-    
     while(1){       // service loop
         int counter = 0;
         char *buf =  (char *) Malloc(MAXBUF);
