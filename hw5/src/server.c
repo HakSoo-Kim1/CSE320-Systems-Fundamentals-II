@@ -20,7 +20,6 @@ char *commandStrGenerator(char* command);
  * thread and a new thread has been created to handle the connection.
  */
 void *pbx_client_service(void *arg) {
-
     char* pickupCommand = commandStrGenerator(tu_command_names[TU_PICKUP_CMD]); 
     char* hangupCommand = commandStrGenerator(tu_command_names[TU_HANGUP_CMD]); 
     char* dialCommand = commandStrGenerator(tu_command_names[TU_DIAL_CMD]); 
@@ -30,8 +29,10 @@ void *pbx_client_service(void *arg) {
     Free(arg);
     Pthread_detach(pthread_self());
     TU * newTu = tu_init(connfd);
+
     pbx_register(pbx, newTu, connfd);
     FILE *fp = Fdopen(connfd, "r");
+    debug("%ld",sizeof(char));
     while(1){       // service loop
         int counter = 0;
         char *buf =  (char *) Malloc(MAXBUF);

@@ -158,12 +158,10 @@ int tu_dial(TU *tu, TU *target) {
                 V(&(target -> tuMutex));
                 V(&(tu -> tuMutex));
 
-                
                 tu_ref(tu, "dialing");
                 tu_ref(target, "dialing");
 
                 notify(target, NULL);
-
             }
         }
         else{                                                                                       // target is null (cannot find receiver)
@@ -278,7 +276,6 @@ int tu_hangup(TU *tu) {
         tu -> currentState = TU_ON_HOOK;
         V(&(tu -> tuMutex));
     }
-    // TO BE IMPLEMENTED
     notify(tu, NULL);
     return 0;
 }
@@ -295,9 +292,9 @@ int tu_hangup(TU *tu) {
  */
 int tu_chat(TU *tu, char *msg) {
     TU *connected = tu -> connected;
+    notify(tu, NULL);
     if (!connected){return -1;}
     if (tu -> currentState != TU_CONNECTED || connected -> currentState != TU_CONNECTED){return -1;}
-    notify(tu, NULL);
     notify(connected, msg);
     return 0;
 }

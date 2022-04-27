@@ -33,8 +33,8 @@ PBX *pbx_init() {
     tuHead -> next = tuHead;
     PBX *pbx = Malloc(sizeof(PBX)); 
     pbx -> tuHead = tuHead;
-    sem_init(&(pbx->pbxMutex), 0, 1);
-    sem_init(&(pbx->pbxZeroMutex), 0, 1);
+    sem_init(&(pbx -> pbxMutex), 0, 1);
+    sem_init(&(pbx -> pbxZeroMutex), 0, 1);
     return pbx;
 }
 
@@ -89,7 +89,7 @@ void pbx_shutdown(PBX *pbx) {
 
 int pbx_register(PBX *pbx, TU *tu, int ext) {
     debug("pbx_register is called");
-    tu_set_extension(tu, ext);
+    tu_set_extension(tu, ext);  // notify
     TU_LINK *tuLink = Malloc(sizeof(TU_LINK)); 
     tuLink -> tu = tu;
     TU_LINK *tuHead = pbx -> tuHead;
@@ -105,14 +105,9 @@ int pbx_register(PBX *pbx, TU *tu, int ext) {
     tuLink -> next = tuHead;
     tuHead -> prev = tuLink;
     last -> next = tuLink;
+
     tu_ref(tu,"register!!");
     V(&(pbx->pbxMutex));
-
-    // int fd = tu_fileno(tu);
-    // char *buf = Malloc(MAXBUF);
-    // size_t count = sprintf(buf, "%s!%d%s", tu_state_names[TU_ON_HOOK], fd, EOL);
-    // Write(fd, buf, count);
-    // Free(buf);
 
     return 0;
 
@@ -134,7 +129,6 @@ int pbx_register(PBX *pbx, TU *tu, int ext) {
 
 int pbx_unregister(PBX *pbx, TU *tu) {
     debug("pbx_unregister is called");
-    P(&(pbx->pbxMutex));
     TU_LINK *tuHead = pbx -> tuHead;
     TU_LINK *node = tuHead -> next;
     TU_LINK *tuUnregister = NULL;
@@ -146,11 +140,10 @@ int pbx_unregister(PBX *pbx, TU *tu) {
         }
         node = node -> next;
     }
-    if (!tuUnregister){
-        V(&(pbx->pbxMutex));
-        return -1;
-    }
+    if (!tuUnregister){return -1;}
     
+    P(&(pbx->pbxMutex));
+
     if(tu_hangup(tuUnregister -> tu)){
         V(&(pbx->pbxMutex));
         return -1;

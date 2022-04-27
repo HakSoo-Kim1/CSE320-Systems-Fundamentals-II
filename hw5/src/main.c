@@ -25,16 +25,16 @@ int main(int argc, char* argv[]){
     opterr = 0;         // prevent the error message from getopt 
 
     while((opt = getopt(argc, argv, "p:")) != -1){
-    switch(opt){
-      case 'p':                       // port command is given
-        debug("p command is given");
-        port = optarg;                // store given port
-        break;
-      default:
-        fprintf(stderr, "Usage: pbx -p <port>\n");
-        exit(EXIT_FAILURE);
+      switch(opt){
+        case 'p':                       // port command is given
+          debug("p command is given");
+          port = optarg;                // store given port
+          break;
+        default:
+          fprintf(stderr, "Usage: pbx -p <port>\n");
+          exit(EXIT_FAILURE);
+      }
     }
-  }
 
     if (argc != 3 || port == NULL) {
         fprintf(stderr, "Usage: pbx -p <port>\n");
@@ -57,16 +57,14 @@ int main(int argc, char* argv[]){
     struct sockaddr_storage clientaddr;
     pthread_t tid;
     listenfd = Open_listenfd(port);
-
     while (terminateFlag == 0) {
-    clientlen=sizeof(struct sockaddr_storage);
-    connfdp = Malloc(sizeof(int));
-    *connfdp = Accept(listenfd, (SA *) &clientaddr, &clientlen);
-    Pthread_create(&tid, NULL, pbx_client_service, connfdp);
+      clientlen = sizeof(struct sockaddr_storage);
+      connfdp = Malloc(sizeof(int));
+      *connfdp = Accept(listenfd, (SA *) &clientaddr, &clientlen);
+      Pthread_create(&tid, NULL, pbx_client_service, connfdp);
     }
 
     debug("\n\n main terminating ");
-
     terminate(EXIT_SUCCESS);
 }
 
