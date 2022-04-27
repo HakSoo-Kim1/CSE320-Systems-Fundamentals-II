@@ -82,5 +82,6 @@ static void terminate(int status) {
 
 void SIGHUP_handler(int sig) {
   terminateFlag = 1;
+  // terminate(EXIT_SUCCESS);
   debug("Handler triggered");
 }

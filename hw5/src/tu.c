@@ -5,6 +5,18 @@
 
 #include "pbx.h"
 #include "debug.h"
+#include "csapp.h"
+
+
+typedef struct tu {
+    int fd;
+    int ref;
+    TU_STATE currentState;
+    struct tu *connected;
+    sem_t tuMutex;
+} TU;
+
+int notify(TU *tu, char *msg);
 
 /*
  * Initialize a TU
@@ -13,12 +25,15 @@
  * @return  The TU, newly initialized and in the TU_ON_HOOK state, if initialization
  * was successful, otherwise NULL.
  */
-#if 0
 TU *tu_init(int fd) {
-    // TO BE IMPLEMENTED
-    abort();
-}
-#endif
+    TU *newTu = Malloc(sizeof(TU)); 
+    newTu -> fd = fd;
+    newTu -> ref = 0;
+    newTu -> currentState = TU_ON_HOOK;
+    newTu -> connected = NULL;
+    sem_init(&(newTu -> tuMutex), 0, 1);
+    return newTu;
+ }
 
 /*
  * Increment the reference count on a TU.
@@ -27,12 +42,12 @@ TU *tu_init(int fd) {
  * @param reason  A string describing the reason why the count is being incremented
  * (for debugging purposes).
  */
-#if 0
 void tu_ref(TU *tu, char *reason) {
-    // TO BE IMPLEMENTED
-    abort();
+    debug("tu_ref is called by ext : %d because %s ", tu -> fd, reason);
+    P(&(tu -> tuMutex));
+    tu -> ref += 1;
+    V(&(tu -> tuMutex));
 }
-#endif
 
 /*
  * Decrement the reference count on a TU, freeing it if the count becomes 0.
@@ -41,12 +56,16 @@ void tu_ref(TU *tu, char *reason) {
  * @param reason  A string describing the reason why the count is being decremented
  * (for debugging purposes).
  */
-#if 0
 void tu_unref(TU *tu, char *reason) {
-    // TO BE IMPLEMENTED
-    abort();
+    debug("tu_unref is called by ext : %d because %s ", tu -> fd, reason);
+    P(&(tu -> tuMutex));
+    tu -> ref -= 1;
+    V(&(tu -> tuMutex));
+    if (tu -> ref == 0){
+        debug("FREEING %d",tu -> fd);
+        Free(tu);
+    }
 }
-#endif
 
 /*
  * Get the file descriptor for the network connection underlying a TU.
@@ -57,12 +76,9 @@ void tu_unref(TU *tu, char *reason) {
  * @param tu
  * @return the underlying file descriptor, if any, otherwise -1.
  */
-#if 0
 int tu_fileno(TU *tu) {
-    // TO BE IMPLEMENTED
-    abort();
+    return tu -> fd;
 }
-#endif
 
 /*
  * Get the extension number for a TU.
@@ -74,12 +90,9 @@ int tu_fileno(TU *tu) {
  * @param tu
  * @return the extension number, if any, otherwise -1.
  */
-#if 0
 int tu_extension(TU *tu) {
-    // TO BE IMPLEMENTED
-    abort();
+    return tu -> fd;
 }
-#endif
 
 /*
  * Set the extension number for a TU.
@@ -88,12 +101,13 @@ int tu_extension(TU *tu) {
  *
  * @param tu  The TU whose extension is being set.
  */
-#if 0
 int tu_set_extension(TU *tu, int ext) {
-    // TO BE IMPLEMENTED
-    abort();
+    P(&(tu -> tuMutex));
+    tu -> fd = ext;
+    V(&(tu -> tuMutex));
+    notify(tu, NULL);
+    return 0;
 }
-#endif
 
 /*
  * Initiate a call from a specified originating TU to a specified target TU.
@@ -125,12 +139,45 @@ int tu_set_extension(TU *tu, int ext) {
  * @return 0 if successful, -1 if any error occurs that results in the originating
  * TU transitioning to the TU_ERROR state. 
  */
-#if 0
 int tu_dial(TU *tu, TU *target) {
-    // TO BE IMPLEMENTED
-    abort();
+    if (tu -> currentState == TU_DIAL_TONE){        // current state is in dial
+        if (target != NULL){        // target is not null
+            if (tu == target || target -> connected || (target -> currentState != TU_ON_HOOK)){     // busy case
+                P(&(tu -> tuMutex));
+                tu -> currentState = TU_BUSY_SIGNAL;
+                V(&(tu -> tuMutex));
+            }
+            else{                                                                                   // connectable case
+                P(&(tu -> tuMutex));
+                P(&(target -> tuMutex));
+
+                tu -> currentState = TU_RING_BACK;
+                target -> currentState = TU_RINGING;
+                tu -> connected = target;
+                target -> connected = tu;
+                V(&(target -> tuMutex));
+                V(&(tu -> tuMutex));
+
+                
+                tu_ref(tu, "dialing");
+                tu_ref(target, "dialing");
+
+                notify(target, NULL);
+
+            }
+        }
+        else{                                                                                       // target is null (cannot find receiver)
+            P(&(tu -> tuMutex));                                                          
+            tu -> currentState = TU_ERROR;
+            V(&(tu -> tuMutex));
+            notify(tu, NULL);
+            return -1;
+        }
+    }
+    // current state is not in dial 
+    notify(tu, NULL);
+    return 0;
 }
-#endif
 
 /*
  * Take a TU receiver off-hook (i.e. pick up the handset).
@@ -149,12 +196,32 @@ int tu_dial(TU *tu, TU *target) {
  * @return 0 if successful, -1 if any error occurs that results in the originating
  * TU transitioning to the TU_ERROR state. 
  */
-#if 0
 int tu_pickup(TU *tu) {
-    // TO BE IMPLEMENTED
-    abort();
+    if (tu -> currentState == TU_ON_HOOK) {         // pick up to dial 
+        P(&(tu -> tuMutex));
+        tu -> currentState = TU_DIAL_TONE;
+        V(&(tu -> tuMutex));
+    }
+    else if (tu -> currentState == TU_RINGING){     // receive incoming calling  
+        debug("here");
+        TU *connected = tu -> connected;
+        if (!connected){return -1;}
+
+        P(&(tu -> tuMutex));                // what if P V P V 
+        P(&(connected -> tuMutex));
+
+        tu -> currentState = TU_CONNECTED;
+        connected -> currentState = TU_CONNECTED;
+
+        V(&(tu -> tuMutex));
+        V(&(connected -> tuMutex));
+
+        notify(connected, NULL);
+    }
+    
+    notify(tu, NULL);
+    return 0;
 }
-#endif
 
 /*
  * Hang up a TU (i.e. replace the handset on the switchhook).
@@ -177,29 +244,85 @@ int tu_pickup(TU *tu) {
  * @return 0 if successful, -1 if any error occurs that results in the originating
  * TU transitioning to the TU_ERROR state. 
  */
-#if 0
 int tu_hangup(TU *tu) {
+    if (tu -> currentState == TU_CONNECTED || tu -> currentState == TU_RINGING || tu -> currentState == TU_RING_BACK){
+        TU *connected = tu -> connected;
+        if (!connected){return 0;}
+
+        P(&(tu -> tuMutex));                
+        P(&(connected -> tuMutex));
+
+        if (tu -> currentState == TU_CONNECTED || tu -> currentState == TU_RINGING){
+            tu -> currentState = TU_ON_HOOK;
+            tu -> connected = NULL;
+            connected -> currentState = TU_DIAL_TONE;
+            connected -> connected = NULL;
+        }
+        else if (tu -> currentState == TU_RING_BACK){
+            tu -> currentState = TU_ON_HOOK;
+            tu -> connected = NULL;
+            connected -> currentState = TU_ON_HOOK;
+            connected -> connected = NULL;
+        }
+
+        V(&(tu -> tuMutex));
+        V(&(connected -> tuMutex));
+
+        tu_unref(tu, "hangup");
+        tu_unref(connected, "hangup");
+        notify(connected, NULL);
+
+    }
+    else if (tu -> currentState == TU_DIAL_TONE || tu -> currentState == TU_BUSY_SIGNAL || tu -> currentState == TU_ERROR){
+        P(&(tu -> tuMutex));                
+        tu -> currentState = TU_ON_HOOK;
+        V(&(tu -> tuMutex));
+    }
     // TO BE IMPLEMENTED
-    abort();
+    notify(tu, NULL);
+    return 0;
 }
-#endif
 
 /*
  * "Chat" over a connection.
  *
- * If the state of the TU is not TU_CONNECTED, then nothing is sent and -1 is returned.
- * Otherwise, the specified message is sent via the network connection to the peer TU.
- * In all cases, the states of the TUs are left unchanged and a notification containing
- * the current state is sent to the TU sending the chat.
+' '
  *
  * @param tu  The tu sending the chat.
  * @param msg  The message to be sent.
  * @return 0  If the chat was successfully sent, -1 if there is no call in progress
  * or some other error occurs.
  */
-#if 0
 int tu_chat(TU *tu, char *msg) {
-    // TO BE IMPLEMENTED
-    abort();
+    TU *connected = tu -> connected;
+    if (!connected){return -1;}
+    if (tu -> currentState != TU_CONNECTED || connected -> currentState != TU_CONNECTED){return -1;}
+    notify(tu, NULL);
+    notify(connected, msg);
+    return 0;
 }
-#endif
+
+int notify(TU *tu, char *msg){
+    int fd = tu_fileno(tu);
+    char *buf = Malloc(MAXBUF);
+    size_t count = -1;
+    if (tu -> currentState == TU_ON_HOOK){
+        count = sprintf(buf, "%s %d%s", tu_state_names[tu -> currentState], fd, EOL);
+    }
+    else if (tu -> currentState == TU_DIAL_TONE || tu -> currentState == TU_BUSY_SIGNAL ||
+        tu -> currentState == TU_RINGING || tu -> currentState == TU_RING_BACK || tu -> currentState == TU_ERROR){
+        count = sprintf(buf, "%s%s", tu_state_names[tu -> currentState], EOL);
+    }
+    else if (tu -> currentState == TU_CONNECTED){
+        if (msg){       // send message to connected tu
+            count = sprintf(buf, "CHAT %s%s", msg, EOL);
+        }
+        else{               // notify connected 
+            count = sprintf(buf, "%s %d%s", tu_state_names[tu -> currentState], tu -> connected -> fd, EOL);
+        }
+    }
+    if (count == -1){return -1;}
+    Write(fd, buf, count);
+    Free(buf);
+    return 0;
+}

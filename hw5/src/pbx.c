@@ -89,8 +89,7 @@ void pbx_shutdown(PBX *pbx) {
 
 int pbx_register(PBX *pbx, TU *tu, int ext) {
     debug("pbx_register is called");
-    // debug("%d %d",tu_extension(tu),tu_fileno(tu));
-    tu_set_extension(tu,ext);
+    tu_set_extension(tu, ext);
     TU_LINK *tuLink = Malloc(sizeof(TU_LINK)); 
     tuLink -> tu = tu;
     TU_LINK *tuHead = pbx -> tuHead;
@@ -147,9 +146,15 @@ int pbx_unregister(PBX *pbx, TU *tu) {
         }
         node = node -> next;
     }
-    if (!tuUnregister){return -1;}
+    if (!tuUnregister){
+        V(&(pbx->pbxMutex));
+        return -1;
+    }
     
-    if(tu_hangup(tuUnregister -> tu)){return -1;};
+    if(tu_hangup(tuUnregister -> tu)){
+        V(&(pbx->pbxMutex));
+        return -1;
+    };
 
     tuUnregister -> prev -> next = tuUnregister -> next;
     tuUnregister -> next -> prev = tuUnregister -> prev;
@@ -159,6 +164,7 @@ int pbx_unregister(PBX *pbx, TU *tu) {
     V(&(pbx->pbxMutex));
 
     if ((tuHead == tuHead -> prev) && (tuHead == tuHead -> next)){
+        debug("PBX IS EMPTY");
         V(&pbx->pbxZeroMutex);
     }
     return 0;
@@ -178,15 +184,13 @@ int pbx_dial(PBX *pbx, TU *tu, int ext) {
     debug("pbx_dial is called");
     TU_LINK *tuHead = pbx -> tuHead;
     TU_LINK *node = tuHead -> next;
-    TU_LINK *tuReceiver = NULL;
+    TU *tuReceiver = NULL;
     while(node != tuHead){
-        int ans = tu_extension(node -> tu);
-        if ( ans== ext){
-            tuReceiver = node;
+        if (tu_extension(node -> tu) == ext){
+            tuReceiver = node -> tu;
             break;
         }
         node = node -> next;
     }
-    if (!tuReceiver){return tu_dial(tu, NULL);}
-    return tu_dial(tu, tuReceiver -> tu);
+    return tu_dial(tu, tuReceiver);
 }
