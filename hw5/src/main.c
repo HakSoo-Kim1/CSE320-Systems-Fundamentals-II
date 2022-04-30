@@ -38,7 +38,7 @@ int main(int argc, char* argv[]){
 
     if (argc != 3 || port == NULL) {
         fprintf(stderr, "Usage: pbx -p <port>\n");
-        exit(EXIT_FAILURE);
+        exit(EXIT_SUCCESS);
     }
 
     if ((atoi(port)) < 1024) {
