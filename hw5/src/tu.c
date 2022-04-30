@@ -155,6 +155,7 @@ int tu_dial(TU *tu, TU *target) {
                 target -> currentState = TU_RINGING;
                 tu -> connected = target;
                 target -> connected = tu;
+
                 V(&(target -> tuMutex));
                 V(&(tu -> tuMutex));
 
@@ -210,9 +211,10 @@ int tu_pickup(TU *tu) {
 
         tu -> currentState = TU_CONNECTED;
         connected -> currentState = TU_CONNECTED;
-
-        V(&(tu -> tuMutex));
+        
         V(&(connected -> tuMutex));
+        V(&(tu -> tuMutex));
+        
 
         notify(connected, NULL);
     }
@@ -262,9 +264,8 @@ int tu_hangup(TU *tu) {
             connected -> currentState = TU_ON_HOOK;
             connected -> connected = NULL;
         }
-
-        V(&(tu -> tuMutex));
         V(&(connected -> tuMutex));
+        V(&(tu -> tuMutex));
 
         tu_unref(tu, "hangup");
         tu_unref(connected, "hangup");

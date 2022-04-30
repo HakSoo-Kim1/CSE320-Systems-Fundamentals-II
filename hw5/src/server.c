@@ -102,14 +102,12 @@ void *pbx_client_service(void *arg) {
         Free(buf);
     }
     
-
     Free(pickupCommand);
     Free(hangupCommand);
     Free(dialCommand);
     Free(chatCommand);
     pbx_unregister(pbx, newTu);
     Close(connfd);
-
     return NULL;
 }
 

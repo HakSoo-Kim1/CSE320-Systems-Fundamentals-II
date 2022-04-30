@@ -51,7 +51,7 @@ int main(int argc, char* argv[]){
 
     pbx = pbx_init();
     Signal(SIGHUP, SIGHUP_handler);
-
+    
     int listenfd, *connfdp;
     socklen_t clientlen;
     struct sockaddr_storage clientaddr;
@@ -61,6 +61,10 @@ int main(int argc, char* argv[]){
       clientlen = sizeof(struct sockaddr_storage);
       connfdp = Malloc(sizeof(int));
       *connfdp = Accept(listenfd, (SA *) &clientaddr, &clientlen);
+      if (terminateFlag && errno == EINTR) {
+        debug("Got EINTR");
+        break;
+      }
       Pthread_create(&tid, NULL, pbx_client_service, connfdp);
     }
 
@@ -80,6 +84,5 @@ static void terminate(int status) {
 
 void SIGHUP_handler(int sig) {
   terminateFlag = 1;
-  // terminate(EXIT_SUCCESS);
   debug("Handler triggered");
 }
