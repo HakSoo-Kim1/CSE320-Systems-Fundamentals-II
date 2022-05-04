@@ -19,7 +19,11 @@ int main(int argc, char* argv[]){
     // Option processing should be performed here.
     // Option '-p <port>' is required in order to specify the port number
     // on which the server should listen.
-    
+    if (argc == 2){
+        fprintf(stderr, "Usage: pbx -p <port>\n");
+        exit(EXIT_SUCCESS);
+    }
+
     char *port = NULL;    // store port num
     int opt;
     opterr = 0;         // prevent the error message from getopt 
@@ -36,17 +40,11 @@ int main(int argc, char* argv[]){
       }
     }
 
-    if (argc != 3) {
+    if (argc != 3 || port == NULL) {
         fprintf(stderr, "Usage: pbx -p <port>\n");
-        // exit(EXIT_FAILURE);
-        exit(EXIT_SUCCESS);
-    }
-
-    if (port == NULL){
-        fprintf(stderr, "Wrong port format (should be greater than or equal to 1024)\n");
         exit(EXIT_FAILURE);
     }
-    
+
     if ((atoi(port)) < 1024) {
         fprintf(stderr, "Wrong port format (should be greater than or equal to 1024)\n");
         exit(EXIT_FAILURE);
