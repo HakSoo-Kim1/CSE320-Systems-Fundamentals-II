@@ -19,7 +19,7 @@ int main(int argc, char* argv[]){
     // Option processing should be performed here.
     // Option '-p <port>' is required in order to specify the port number
     // on which the server should listen.
-    if (argc == 2){
+    if (argc == 1){
         fprintf(stderr, "Usage: pbx -p <port>\n");
         exit(EXIT_SUCCESS);
     }
