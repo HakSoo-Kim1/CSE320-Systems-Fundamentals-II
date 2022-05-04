@@ -106,6 +106,7 @@ void *pbx_client_service(void *arg) {
     Free(hangupCommand);
     Free(dialCommand);
     Free(chatCommand);
+    // Fclose(fp);
     pbx_unregister(pbx, newTu);
     Close(connfd);
     return NULL;

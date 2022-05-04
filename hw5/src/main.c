@@ -36,12 +36,17 @@ int main(int argc, char* argv[]){
       }
     }
 
-    if (argc != 3 || port == NULL) {
+    if (argc != 3) {
         fprintf(stderr, "Usage: pbx -p <port>\n");
         // exit(EXIT_FAILURE);
         exit(EXIT_SUCCESS);
     }
 
+    if (port == NULL){
+        fprintf(stderr, "Wrong port format (should be greater than or equal to 1024)\n");
+        exit(EXIT_FAILURE);
+    }
+    
     if ((atoi(port)) < 1024) {
         fprintf(stderr, "Wrong port format (should be greater than or equal to 1024)\n");
         exit(EXIT_FAILURE);
